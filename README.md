@@ -117,24 +117,25 @@ This task requires:
 - `man_1_simple_shell`
 - `AUTHORS`
 
-## Simple shell 0.2 (Current Implementation)
+## Simple shell 0.3 (Current Implementation)
 Usage:
 ```bash
 ./hsh
 ```
 
-Implemented for 0.2:
+Implemented for 0.3:
 - Displays a prompt (`#cisfun$ `) in interactive mode.
 - Reads one command line at a time with `getline`.
 - Handles commands with arguments (split by spaces/tabs).
+- Resolves commands through `PATH` when command is not an absolute/relative path.
+- Does not call `fork` when command cannot be resolved.
 - Executes with `fork` + `execve`.
 - Prints an error with `perror` when execution fails.
 - Waits for child process completion with `waitpid`.
 - Handles EOF (`Ctrl + D`) by exiting cleanly.
 - Passes `envp` to `execve`.
 
-Intentionally not implemented in 0.2:
-- PATH search.
+Intentionally not implemented in 0.3:
 - Built-ins.
 - Pipes, redirections, semicolons.
 - Special character handling (`"`, `'`, `` ` ``, `\\`, `*`, `&`, `#`).
