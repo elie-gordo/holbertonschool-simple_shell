@@ -117,13 +117,13 @@ This task requires:
 - `man_1_simple_shell`
 - `AUTHORS`
 
-## Simple shell 0.4 (Current Implementation)
+## Simple shell 1.0 (Current Implementation)
 Usage:
 ```bash
 ./hsh
 ```
 
-Implemented for 0.4:
+Implemented for 1.0:
 - Displays a prompt (`#cisfun$ `) in interactive mode.
 - Reads one command line at a time with `getline`.
 - Handles commands with arguments (split by spaces/tabs).
@@ -135,9 +135,9 @@ Implemented for 0.4:
 - Handles EOF (`Ctrl + D`) by exiting cleanly.
 - Passes `envp` to `execve`.
 - Implements built-in `exit`.
+- Implements built-in `env` (prints current environment).
 
-Intentionally not implemented in 0.4:
-- Built-in `env`.
+Intentionally not implemented in 1.0:
 - Pipes, redirections, semicolons.
 - Special character handling (`"`, `'`, `` ` ``, `\\`, `*`, `&`, `#`).
 
