@@ -15,11 +15,13 @@ int simple_shell(char *prog_name, char **envp)
 	int interactive;
 	int cmd_count;
 	char **args;
+	int should_exit;
 
 	line = NULL;
 	len = 0;
 	interactive = isatty(STDIN_FILENO);
 	cmd_count = 0;
+	should_exit = 0;
 	while (1)
 	{
 		if (interactive)
@@ -35,8 +37,11 @@ int simple_shell(char *prog_name, char **envp)
 		args = parse_line(line);
 		if (args == NULL)
 			continue;
-		execute_command(args, prog_name, envp, cmd_count);
+		if (!handle_builtin(args, envp, &should_exit))
+			execute_command(args, prog_name, envp, cmd_count);
 		free_args(args);
+		if (should_exit)
+			break;
 	}
 	if (interactive)
 		write(STDOUT_FILENO, "\n", 1);

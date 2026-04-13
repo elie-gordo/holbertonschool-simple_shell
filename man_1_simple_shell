@@ -8,13 +8,13 @@ hsh \- simple UNIX command interpreter
 is a simple command-line interpreter.
 It reads commands from standard input, interprets them, and runs programs.
 
-Version 0.3 behavior:
+Version 0.4 behavior:
 .RS
 - command and arguments (split on spaces/tabs)
 .br
 - PATH search
 .br
-- no built-ins
+- built-in: exit
 .br
 - no pipes/redirections/advanced parsing
 .RE
