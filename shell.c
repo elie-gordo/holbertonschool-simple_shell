@@ -13,10 +13,13 @@ int simple_shell(char *prog_name, char **envp)
 	size_t len;
 	ssize_t nread;
 	int interactive;
+	int cmd_count;
+	char **args;
 
 	line = NULL;
 	len = 0;
 	interactive = isatty(STDIN_FILENO);
+	cmd_count = 0;
 	while (1)
 	{
 		if (interactive)
@@ -24,11 +27,16 @@ int simple_shell(char *prog_name, char **envp)
 		nread = getline(&line, &len, stdin);
 		if (nread == -1)
 			break;
+		cmd_count++;
 		if (nread > 0 && line[nread - 1] == '\n')
 			line[nread - 1] = '\0';
 		if (line[0] == '\0')
 			continue;
-		execute_word(line, prog_name, envp);
+		args = parse_line(line);
+		if (args == NULL)
+			continue;
+		execute_command(args, prog_name, envp, cmd_count);
+		free_args(args);
 	}
 	if (interactive)
 		write(STDOUT_FILENO, "\n", 1);
