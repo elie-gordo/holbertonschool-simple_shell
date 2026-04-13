@@ -67,7 +67,8 @@ By the end of this project, we must be able to explain:
 
 ## Allowed Functions and System Calls
 The project allows specific C library functions and system calls (see project statement), including:
-`access`, `chdir`, `close`, `execve`, `exit`, `_exit`, `fork`, `free`, `getline`, `getpid`, `isatty`, `kill`, `malloc`, `open`, `opendir`, `perror`, `printf`, `fprintf`, `read`, `readdir`, `signal`, `stat`, `lstat`, `fstat`, `strtok`, `wait`, `waitpid`, `wait3`, `wait4`, `write`, and all functions from `string.h`.
+all functions from `string.h`, and:
+`access`, `chdir`, `close`, `closedir`, `execve`, `exit`, `_exit`, `fflush`, `fork`, `free`, `getcwd`, `getline`, `getpid`, `isatty`, `kill`, `malloc`, `open`, `opendir`, `perror`, `printf`, `fprintf`, `vfprintf`, `sprintf`, `putchar`, `read`, `readdir`, `signal`, `stat`, `lstat`, `fstat`, `strtok`, `wait`, `waitpid`, `wait3`, `wait4`, `write`.
 
 ## Compilation
 ```bash
@@ -87,6 +88,20 @@ Non-interactive mode:
 echo "/bin/ls" | ./hsh
 ```
 
+Complete non-interactive example from subject:
+```bash
+cat test_ls_2
+/bin/ls
+/bin/ls
+cat test_ls_2 | ./hsh
+```
+
+Expected output:
+```bash
+hsh main.c shell.c test_ls_2
+hsh main.c shell.c test_ls_2
+```
+
 ## Error Message Rule
 The shell output and error behavior must match `/bin/sh`, except the program name in error output must match `argv[0]`.
 
@@ -101,6 +116,29 @@ This task requires:
 - `README.md`
 - `man_1_simple_shell`
 - `AUTHORS`
+
+## Simple shell 0.1 (Current Implementation)
+Usage:
+```bash
+./hsh
+```
+
+Implemented for 0.1:
+- Displays a prompt (`#cisfun$ `) in interactive mode.
+- Reads one command line at a time with `getline`.
+- Handles one-word commands only (no arguments).
+- Executes with `fork` + `execve`.
+- Prints an error with `perror` when execution fails.
+- Waits for child process completion with `waitpid`.
+- Handles EOF (`Ctrl + D`) by exiting cleanly.
+- Passes `envp` to `execve`.
+
+Intentionally not implemented in 0.1:
+- PATH search.
+- Built-ins.
+- Arguments.
+- Pipes, redirections, semicolons.
+- Special character handling (`"`, `'`, `` ` ``, `\\`, `*`, `&`, `#`).
 
 ## Terminology Quick Guide
 - Command interpreter: program that understands user commands.
