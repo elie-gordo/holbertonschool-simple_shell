@@ -1,15 +1,14 @@
 #include "shell.h"
 
 /**
- * main - Entry point.
- * @ac: Argument count.
- * @av: Argument vector.
- * @envp: Environment variables.
+ * main - Entry point for hsh.
+ * @argc: Argument count.
+ * @argv: Argument vector.
  *
  * Return: Shell exit status.
  */
-int main(int ac, char **av, char **envp)
+int main(int argc, char **argv)
 {
-	(void)ac;
-	return (simple_shell(av[0], envp));
+	(void)argc;
+	return (shell_loop(argv[0]));
 }

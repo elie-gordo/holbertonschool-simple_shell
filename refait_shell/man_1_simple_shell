@@ -1,56 +1,310 @@
-.TH hsh 1 "April 2026" "Holberton simple_shell" "User Commands"
+.TH HSH 1 "January 2026" "Version 1.0" "Simple Shell Manual"
 .SH NAME
 hsh \- simple UNIX command interpreter
 .SH SYNOPSIS
 .B hsh
 .SH DESCRIPTION
 .B hsh
-is a simple command-line interpreter.
-It reads commands from standard input, interprets them, and runs programs.
-
-Implemented behavior:
+is a simple UNIX command line interpreter that reads commands from either a file or standard input and executes them.
+.PP
+The shell displays a prompt
+.B ($)
+when it is in interactive mode and waits for user input. When the user enters a command, the shell processes it and executes it. The shell continues to run until it receives the
+.B exit
+command or an end-of-file condition (Ctrl+D).
+.SH INVOCATION
+The shell can be invoked in two modes:
+.SS Interactive Mode
+In interactive mode, the shell displays a prompt and reads commands from the terminal:
+.PP
+.nf
 .RS
-- command and arguments (split on spaces/tabs)
-.br
-- PATH search
-.br
-- built-ins: exit, env
-.br
-- no pipes/redirections/advanced parsing
-.RE
-
-Interactive mode prints `($) ` before reading a command.
-Non-interactive mode reads from piped or redirected input.
-
-Error messages are aligned with
-.B /bin/sh
-format for command-not-found cases, except that the program name is
-.B argv[0]
-of
-.BR hsh .
-.SH RETURN VALUE
-Returns shell exit status.
-.SH ENVIRONMENT
-.B PATH
-is used to locate executables when a command has no slash.
-.SH EXAMPLES
-Interactive mode:
-.PP
-.B ./hsh
-.br
+$ ./hsh
 ($) /bin/ls
-.br
+hsh main.c shell.c
 ($) exit
-
-Non-interactive mode:
+$
+.RE
+.fi
+.SS Non-Interactive Mode
+In non-interactive mode, the shell reads commands from standard input without displaying a prompt:
 .PP
-.B echo "/bin/ls" | ./hsh
+.nf
+.RS
+$ echo "/bin/ls" | ./hsh
+hsh main.c shell.c
+$ cat test_file | ./hsh
+.RE
+.fi
+.SH COMMAND EXECUTION
+.SS Built-in Commands
+The shell supports the following built-in commands:
+.TP
+.B exit
+Exit the shell and return to the parent process. The shell returns the exit status of the last executed command.
+.TP
+.B env
+Print all environment variables of the current process, one per line.
+.SS External Commands
+For commands that are not built-in, the shell searches for executable files using the following process:
+.TP
+1. If the command starts with
+.B /
+or
+.B .
+(absolute or relative path), the shell attempts to execute it directly.
+.TP
+2. Otherwise, the shell searches for the command in the directories listed in the
+.B PATH
+environment variable.
+.TP
+3. The
+.B PATH
+variable contains directory paths separated by colons (:).
+.TP
+4. The shell tests each directory in order until it finds an executable file with the given command name.
+.PP
+If the command is found, the shell creates a child process using
+.BR fork (2),
+and the child process executes the command using
+.BR execve (2).
+The parent process waits for the child to terminate using
+.BR wait (2).
+.SH ENVIRONMENT
+.TP
+.B PATH
+A colon-separated list of directories in which the shell looks for executable files. For example:
+.PP
+.nf
+.RS
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+.RE
+.fi
+.PP
+The shell uses a custom
+.B _getenv
+function to retrieve environment variable values.
+.SH EXIT STATUS
+The shell returns the exit status of the last command executed. If a command is not found, the shell returns 127. If the
+.B exit
+command is used, the shell returns the exit status of the last command that was successfully executed.
+.SH SYNTAX
+.SS Command Format
+Commands follow the format:
+.PP
+.nf
+.RS
+command [arg1] [arg2] ... [argN]
+.RE
+.fi
+.PP
+Arguments are separated by spaces, tabs, or newlines. The shell uses
+.BR strtok (3)
+to parse the input line.
+.SS Examples
+.PP
+.nf
+.RS
+($) ls
+($) ls -l
+($) ls -la /home
+($) /bin/echo Hello World
+($) pwd
+($) env
+.RE
+.fi
+.SH ERROR HANDLING
+When a command is not found, the shell prints an error message to standard error in the following format:
+.PP
+.nf
+.RS
+./hsh: 1: command_name: not found
+.RE
+.fi
+.PP
+The format is:
+.IR program_name ": " line_number ": " command ": not found"
+.PP
+where
+.I program_name
+is the name used to invoke the shell (argv[0]),
+.I line_number
+is the command counter, and
+.I command
+is the name of the command that was not found.
+.SH SYSTEM CALLS AND LIBRARY FUNCTIONS
+The following system calls and library functions are used:
+.TP
+.BR fork (2)
+Create a child process.
+.TP
+.BR execve (2)
+Execute a program.
+.TP
+.BR wait (2)
+Wait for process to change state.
+.TP
+.BR getline (3)
+Read an entire line from a stream.
+.TP
+.BR strtok (3)
+Extract tokens from strings.
+.TP
+.BR access (2)
+Check user's permissions for a file.
+.TP
+.BR isatty (3)
+Test whether a file descriptor refers to a terminal.
+.TP
+.BR malloc (3)
+Allocate dynamic memory.
+.TP
+.BR free (3)
+Free dynamic memory.
+.TP
+.BR printf (3)
+Formatted output conversion.
+.TP
+.BR fprintf (3)
+Formatted output conversion to a stream.
+.TP
+.BR perror (3)
+Print a system error message.
+.TP
+.BR exit (3)
+Cause normal process termination.
+.SH MEMORY MANAGEMENT
+The shell properly manages memory allocation and deallocation:
+.TP
+\(bu
+Lines read with
+.BR getline (3)
+are freed after processing.
+.TP
+\(bu
+Argument arrays created by
+.B parse_line
+are freed with
+.BR free_args .
+.TP
+\(bu
+Path strings allocated during command search are freed after use.
+.TP
+\(bu
+The shell has no memory leaks.
+.SH LIMITATIONS
+The current implementation has the following limitations:
+.TP
+\(bu
+No support for pipes (|)
+.TP
+\(bu
+No support for input/output redirection (<, >, >>)
+.TP
+\(bu
+No support for command separators (;)
+.TP
+\(bu
+No support for logical operators (&&, ||)
+.TP
+\(bu
+No support for background processes (&)
+.TP
+\(bu
+No support for wildcards (*, ?)
+.TP
+\(bu
+No command history
+.TP
+\(bu
+No support for environment variable expansion ($VAR)
+.TP
+\(bu
+No support for the cd built-in command
+.TP
+\(bu
+Maximum of 64 arguments per command (MAX_ARGS)
+.SH FILES
+.TP
+.I shell.h
+Header file containing function prototypes and includes.
+.TP
+.I main.c
+Main entry point and command loop.
+.TP
+.I builtins.c
+Implementation of built-in commands.
+.TP
+.I helpers.c
+Helper functions for built-in commands.
+.TP
+.I path.c
+Functions for searching commands in PATH.
+.TP
+.I shell.c
+Functions for command execution (fork, exec, wait).
+.TP
+.I utils.c
+Utility functions for parsing and memory management.
+.SH COMPILATION
+The shell is compiled using:
+.PP
+.nf
+.RS
+gcc -Wall -Werror -Wextra -pedantic -std=gnu89 *.c -o hsh
+.RE
+.fi
+.SH EXAMPLES
+.SS Interactive Mode Session
+.PP
+.nf
+.RS
+$ ./hsh
+($) pwd
+/home/user/simple_shell
+($) ls
+AUTHORS  README.md  hsh  main.c  shell.h
+($) /bin/echo Hello, World!
+Hello, World!
+($) env
+PATH=/usr/local/bin:/usr/bin:/bin
+HOME=/home/user
+USER=holberton
+($) invalid_command
+./hsh: 1: invalid_command: not found
+($) exit
+$
+.RE
+.fi
+.SS Non-Interactive Mode Examples
+.PP
+.nf
+.RS
+$ echo "ls" | ./hsh
+AUTHORS  README.md  hsh  main.c
+$ echo -e "pwd\\nls\\nenv" | ./hsh
+/home/user/simple_shell
+AUTHORS  README.md  hsh
+PATH=/usr/local/bin:/usr/bin:/bin
+HOME=/home/user
+.RE
+.fi
+.SH AUTHORS
+Written by a Holberton School student.
+.SH BUGS
+Report bugs to the project repository issue tracker.
 .SH SEE ALSO
 .BR sh (1),
-.BR execve (2),
+.BR bash (1),
+.BR dash (1),
 .BR fork (2),
-.BR waitpid (2)
-.SH AUTHORS
-See
-.B AUTHORS
-file.
+.BR execve (2),
+.BR wait (2),
+.BR environ (7)
+.SH COPYRIGHT
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+.SH NOTES
+This shell is a simplified implementation created as part of the Holberton School curriculum. It is designed for educational purposes and demonstrates fundamental concepts of UNIX shell operation including process creation, program execution, and command parsing.
+.PP
+The shell correctly handles EOF (end-of-file) conditions and performs proper memory cleanup on exit.

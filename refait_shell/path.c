@@ -1,79 +1,98 @@
 #include "shell.h"
 
 /**
- * get_path_value - Read PATH value from envp.
- * @envp: Environment variables.
+ * get_env_value - Get an environment variable value.
+ * @name: Variable name without '='.
  *
- * Return: Pointer to PATH value, or NULL.
+ * Return: Pointer to value in environ, or NULL.
  */
-static char *get_path_value(char **envp)
+char *get_env_value(const char *name)
 {
 	int i;
+	size_t key_len;
 
+	if (name == NULL || environ == NULL)
+		return (NULL);
+	key_len = strlen(name);
 	i = 0;
-	while (envp[i] != NULL)
+	while (environ[i])
 	{
-		if (strncmp(envp[i], "PATH=", 5) == 0)
-			return (envp[i] + 5);
+		if (strncmp(environ[i], name, key_len) == 0 && environ[i][key_len] == '=')
+			return (environ[i] + key_len + 1);
 		i++;
 	}
 	return (NULL);
 }
 
 /**
- * join_path_cmd - Build "dir/cmd" string.
- * @dir: Directory path.
- * @cmd: Command name.
+ * build_candidate - Build "directory/command" path.
+ * @directory: Current directory from PATH.
+ * @command: Command name.
  *
- * Return: Allocated full path, or NULL.
+ * Return: Allocated path candidate or NULL.
  */
-static char *join_path_cmd(char *dir, char *cmd)
+static char *build_candidate(char *directory, char *command)
 {
-	int len;
-	char *full;
+	char *full_path;
+	int size;
 
-	len = strlen(dir) + strlen(cmd) + 2;
-	full = malloc(len);
-	if (full == NULL)
+	size = strlen(directory) + strlen(command) + 2;
+	full_path = malloc(size);
+	if (full_path == NULL)
 		return (NULL);
-	sprintf(full, "%s/%s", dir, cmd);
-	return (full);
+	sprintf(full_path, "%s/%s", directory, command);
+	return (full_path);
 }
 
 /**
- * find_command - Resolve command through PATH.
- * @cmd: Command name or absolute/relative path.
- * @envp: Environment variables.
+ * search_in_path - Search command in PATH entries.
+ * @path_copy: Writable PATH copy.
+ * @command: Command to search.
  *
- * Return: Allocated command path or NULL if not found.
+ * Return: Allocated executable path or NULL.
  */
-char *find_command(char *cmd, char **envp)
+static char *search_in_path(char *path_copy, char *command)
 {
-	char *path_value;
-	char *paths;
 	char *dir;
-	char *full;
+	char *candidate;
 
-	if (strchr(cmd, '/') != NULL)
-		return (access(cmd, X_OK) == 0 ? strdup(cmd) : NULL);
-	path_value = get_path_value(envp);
-	if (path_value == NULL)
-		return (NULL);
-	paths = strdup(path_value);
-	if (paths == NULL)
-		return (NULL);
-	dir = strtok(paths, ":");
+	dir = strtok(path_copy, ":");
 	while (dir != NULL)
 	{
-		full = join_path_cmd(dir, cmd);
-		if (full != NULL && access(full, X_OK) == 0)
-		{
-			free(paths);
-			return (full);
-		}
-		free(full);
+		candidate = build_candidate(dir, command);
+		if (candidate == NULL)
+			return (NULL);
+		if (access(candidate, X_OK) == 0)
+			return (candidate);
+		free(candidate);
 		dir = strtok(NULL, ":");
 	}
-	free(paths);
 	return (NULL);
+}
+
+/**
+ * resolve_command_path - Resolve an executable from command input.
+ * @command: Input command.
+ *
+ * Return: Allocated executable path, or NULL.
+ */
+char *resolve_command_path(char *command)
+{
+	char *path_value;
+	char *path_copy;
+	char *result;
+
+	if (command == NULL)
+		return (NULL);
+	if (strchr(command, '/') != NULL)
+		return (access(command, X_OK) == 0 ? strdup(command) : NULL);
+	path_value = get_env_value("PATH");
+	if (path_value == NULL)
+		return (NULL);
+	path_copy = strdup(path_value);
+	if (path_copy == NULL)
+		return (NULL);
+	result = search_in_path(path_copy, command);
+	free(path_copy);
+	return (result);
 }
