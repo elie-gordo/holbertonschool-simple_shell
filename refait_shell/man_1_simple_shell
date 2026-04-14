@@ -1,0 +1,56 @@
+.TH hsh 1 "April 2026" "Holberton simple_shell" "User Commands"
+.SH NAME
+hsh \- simple UNIX command interpreter
+.SH SYNOPSIS
+.B hsh
+.SH DESCRIPTION
+.B hsh
+is a simple command-line interpreter.
+It reads commands from standard input, interprets them, and runs programs.
+
+Implemented behavior:
+.RS
+- command and arguments (split on spaces/tabs)
+.br
+- PATH search
+.br
+- built-ins: exit, env
+.br
+- no pipes/redirections/advanced parsing
+.RE
+
+Interactive mode prints `($) ` before reading a command.
+Non-interactive mode reads from piped or redirected input.
+
+Error messages are aligned with
+.B /bin/sh
+format for command-not-found cases, except that the program name is
+.B argv[0]
+of
+.BR hsh .
+.SH RETURN VALUE
+Returns shell exit status.
+.SH ENVIRONMENT
+.B PATH
+is used to locate executables when a command has no slash.
+.SH EXAMPLES
+Interactive mode:
+.PP
+.B ./hsh
+.br
+($) /bin/ls
+.br
+($) exit
+
+Non-interactive mode:
+.PP
+.B echo "/bin/ls" | ./hsh
+.SH SEE ALSO
+.BR sh (1),
+.BR execve (2),
+.BR fork (2),
+.BR waitpid (2)
+.SH AUTHORS
+See
+.B AUTHORS
+file.
