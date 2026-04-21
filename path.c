@@ -1,13 +1,13 @@
 #include "shell.h"
 
 /**
- * _build_path - Construct a full path by joining directory and command
- * @dir: directory path (e.g. "/usr/bin")
+ * build_full_path - Concatenate a directory and a command name
+ * @dir: directory path from PATH (e.g. "/usr/bin")
  * @cmd: command name (e.g. "ls")
  *
  * Return: allocated string "dir/cmd", or NULL on failure
  */
-static char *_build_path(char *dir, char *cmd)
+static char *build_full_path(char *dir, char *cmd)
 {
 	int len;
 	char *full;
@@ -16,84 +16,84 @@ static char *_build_path(char *dir, char *cmd)
 	full = malloc(len);
 	if (full == NULL)
 		return (NULL);
-	sprintf(full, "%s/%s", dir, cmd); /* Concatenate with / */
+	sprintf(full, "%s/%s", dir, cmd); /* Join with / separator */
 	return (full);
 }
 
 /**
- * _next_dir - Extract the next directory from a PATH string
- * @path: the PATH value (colon-separated directories)
- * @start: pointer to current scan position (updated after call)
- * @dir: buffer to write the extracted directory into
+ * get_path_value - Retrieve the value of PATH from environ
  *
- * Return: 1 if a directory was extracted, 0 if end of PATH
+ * Return: pointer to the PATH value string, or NULL if not set
  *
- * Description: Manually parses PATH without strtok by scanning
- * for the next colon delimiter or end of string.
+ * Description: Scans the global environ array for the entry
+ * starting with "PATH=", then returns a pointer past the '='.
  */
-static int _next_dir(char *path, int *start, char *dir)
+static char *get_path_value(void)
 {
-	int i = *start, j = 0;
+	int i = 0;
 
-	if (path[i] == '\0')
-		return (0); /* End of PATH string */
-	while (path[i] && path[i] != ':')
-		dir[j++] = path[i++]; /* Copy chars until colon or end */
-	dir[j] = '\0'; /* Null-terminate the directory */
-	if (path[i] == ':')
-		i++; /* Skip the colon delimiter */
-	*start = i; /* Update position for next call */
-	return (1);
-}
-
-/**
- * _search_path - Search for a command in all PATH directories
- * @cmd: command name to look for
- * @path_value: the PATH environment variable value
- *
- * Return: allocated full path if the command is found, NULL otherwise
- */
-static char *_search_path(char *cmd, char *path_value)
-{
-	int pos = 0;
-	char dir[PATH_MAX], *full;
-
-	while (_next_dir(path_value, &pos, dir)) /* Try each directory */
+	while (environ[i] != NULL)
 	{
-		if (dir[0] == '\0')
-			strcpy(dir, "."); /* Empty entry means current dir */
-		full = _build_path(dir, cmd); /* Build /dir/cmd */
-		if (full && access(full, X_OK) == 0)
-			return (full); /* Found an executable: return it */
-		free(full); /* Not found here: try next directory */
+		if (strncmp(environ[i], "PATH=", 5) == 0)
+			return (environ[i] + 5); /* Return value after '=' */
+		i++;
 	}
-	return (NULL); /* Command not in any PATH directory */
+	return (NULL); /* PATH is not defined */
 }
 
 /**
- * find_command - Resolve a command name to an executable path
- * @cmd: command (may be absolute/relative path or just a name)
- * @sh: shell state (for environment access)
+ * search_in_path - Search for a command in all PATH directories
+ * @cmd: command name to find
+ * @path_copy: mutable copy of the PATH string (will be tokenized)
  *
- * Return: allocated path string, or NULL if command not found
- *
- * Description: If the command contains a /, it is treated as a
- * direct path. Otherwise, it is searched in PATH directories.
+ * Return: allocated full path if found, NULL otherwise
  */
-char *find_command(char *cmd, shell_t *sh)
+static char *search_in_path(char *cmd, char *path_copy)
 {
-	char *path_value;
+	char *dir;  /* Current directory from PATH */
+	char *full; /* Constructed full path to test */
 
-	if (cmd == NULL || cmd[0] == '\0')
-		return (NULL); /* No command given */
+	dir = strtok(path_copy, ":"); /* Get first directory */
+	while (dir != NULL)
+	{
+		full = build_full_path(dir, cmd); /* Build /dir/cmd */
+		if (full != NULL && access(full, X_OK) == 0)
+			return (full); /* Found executable: return it */
+		free(full); /* Not here: try next directory */
+		dir = strtok(NULL, ":"); /* Get next directory */
+	}
+	return (NULL); /* Command not found in any PATH dir */
+}
+
+/**
+ * find_command - Resolve a command name to a full executable path
+ * @cmd: command typed by the user
+ *
+ * Return: allocated path string, or NULL if not found
+ *
+ * Description: If cmd contains a '/', treat it as a direct path.
+ * Otherwise, duplicate PATH and search each directory for cmd.
+ * Does not fork if the command cannot be found (task 4 requirement).
+ */
+char *find_command(char *cmd)
+{
+	char *path_value; /* Raw PATH string from environ */
+	char *path_copy;  /* Mutable copy for strtok */
+	char *result;     /* Resolved path or NULL */
+
 	if (strchr(cmd, '/') != NULL) /* Contains /: direct path */
 	{
 		if (access(cmd, X_OK) == 0)
 			return (strdup(cmd)); /* Executable: return copy */
 		return (NULL); /* Path given but not executable */
 	}
-	path_value = _getenv(sh, "PATH"); /* Get PATH from our env */
+	path_value = get_path_value(); /* Get PATH from environ */
 	if (path_value == NULL)
-		return (NULL); /* No PATH defined */
-	return (_search_path(cmd, path_value)); /* Search in PATH */
+		return (NULL); /* No PATH: cannot resolve */
+	path_copy = strdup(path_value); /* Copy because strtok modifies */
+	if (path_copy == NULL)
+		return (NULL);
+	result = search_in_path(cmd, path_copy); /* Search PATH dirs */
+	free(path_copy); /* Free the PATH copy */
+	return (result);
 }
