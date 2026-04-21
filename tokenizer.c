@@ -1,10 +1,13 @@
 #include "shell.h"
 
 /**
- * _count_words - Count tokens separated by spaces and tabs
- * @line: input string
+ * _count_words - Count the number of words in a string
+ * @line: input string to analyze
  *
- * Return: number of words
+ * Return: number of space/tab-separated words
+ *
+ * Description: Handles single quotes so that quoted strings
+ * with spaces count as one word (needed for alias values).
  */
 static int _count_words(char *line)
 {
@@ -13,28 +16,31 @@ static int _count_words(char *line)
 	while (line[i])
 	{
 		if (line[i] == '\'')
-			in_q = !in_q;
+			in_q = !in_q; /* Toggle quote state */
 		if ((line[i] != ' ' && line[i] != '\t') || in_q)
 		{
-			if (!in_word)
+			if (!in_word) /* Start of a new word */
 			{
 				count++;
 				in_word = 1;
 			}
 		}
 		else
-			in_word = 0;
+			in_word = 0; /* Inside a delimiter */
 		i++;
 	}
 	return (count);
 }
 
 /**
- * _get_word - Extract the next word from line starting at *start
+ * _get_word - Extract the next word from a string
  * @line: input string
  * @start: pointer to current position (updated after extraction)
  *
- * Return: newly allocated word, or NULL on failure
+ * Return: newly allocated word string, or NULL on failure
+ *
+ * Description: Skips leading whitespace, then copies characters
+ * until the next unquoted space/tab. Handles single quotes.
  */
 static char *_get_word(char *line, int *start)
 {
@@ -42,63 +48,66 @@ static char *_get_word(char *line, int *start)
 	char *word;
 
 	while (line[*start] == ' ' || line[*start] == '\t')
-		(*start)++;
+		(*start)++; /* Skip leading whitespace */
 	if (line[*start] == '\0')
-		return (NULL);
+		return (NULL); /* No more words */
 	end = *start;
-	while (line[end])
+	while (line[end]) /* Find end of word */
 	{
 		if (line[end] == '\'')
-			in_q = !in_q;
+			in_q = !in_q; /* Toggle quote state */
 		else if ((line[end] == ' ' || line[end] == '\t') && !in_q)
-			break;
+			break; /* Unquoted delimiter: end of word */
 		end++;
 	}
-	len = end - *start;
-	word = malloc(len + 1);
+	len = end - *start; /* Calculate word length */
+	word = malloc(len + 1); /* Allocate space for word + null */
 	if (word == NULL)
 		return (NULL);
-	memcpy(word, line + *start, len);
-	word[len] = '\0';
-	*start = end;
+	memcpy(word, line + *start, len); /* Copy word characters */
+	word[len] = '\0'; /* Null-terminate */
+	*start = end; /* Move position past this word */
 	return (word);
 }
 
 /**
- * tokenize - Split a line into an array of word tokens (no strtok)
- * @line: input string
+ * tokenize - Split a string into an array of word tokens
+ * @line: input string to tokenize
  *
- * Return: NULL-terminated array of tokens, or NULL if empty/error
+ * Return: NULL-terminated array of token strings, or NULL if empty
+ *
+ * Description: Custom replacement for strtok. Each token is a
+ * separately allocated string. Caller must use free_tokens().
  */
 char **tokenize(char *line)
 {
 	int count, i, pos = 0;
 	char **tokens;
 
-	count = _count_words(line);
+	count = _count_words(line); /* How many tokens? */
 	if (count == 0)
-		return (NULL);
-	tokens = malloc(sizeof(char *) * (count + 1));
+		return (NULL); /* Empty line */
+	tokens = malloc(sizeof(char *) * (count + 1)); /* +1 for NULL */
 	if (tokens == NULL)
 		return (NULL);
 	for (i = 0; i < count; i++)
 	{
-		tokens[i] = _get_word(line, &pos);
-		if (tokens[i] == NULL)
+		tokens[i] = _get_word(line, &pos); /* Extract each token */
+		if (tokens[i] == NULL) /* Allocation failed mid-way */
 		{
 			while (--i >= 0)
-				free(tokens[i]);
+				free(tokens[i]); /* Rollback */
 			free(tokens);
 			return (NULL);
 		}
 	}
-	tokens[count] = NULL;
+	tokens[count] = NULL; /* NULL-terminate for execve */
 	return (tokens);
 }
 
 /**
- * free_tokens - Free a token array
- * @tokens: array to free
+ * free_tokens - Free a token array and all its strings
+ * @tokens: array returned by tokenize()
  */
 void free_tokens(char **tokens)
 {
@@ -107,6 +116,6 @@ void free_tokens(char **tokens)
 	if (tokens == NULL)
 		return;
 	for (i = 0; tokens[i]; i++)
-		free(tokens[i]);
-	free(tokens);
+		free(tokens[i]); /* Free each individual token */
+	free(tokens); /* Free the array itself */
 }

@@ -1,7 +1,7 @@
 #include "shell.h"
 
 /**
- * _print_help_all - Print general help listing all builtins
+ * _print_help_all - Print a summary of all available builtins
  */
 static void _print_help_all(void)
 {
@@ -17,10 +17,10 @@ static void _print_help_all(void)
 }
 
 /**
- * _print_help_one - Print help for a specific builtin
- * @name: builtin name
+ * _print_help_one - Print detailed help for a specific builtin
+ * @name: name of the builtin to describe
  *
- * Return: 0 if found, -1 if not a builtin
+ * Return: 0 if the builtin was found, -1 if not recognized
  */
 static int _print_help_one(char *name)
 {
@@ -41,13 +41,13 @@ static int _print_help_one(char *name)
 	else if (strcmp(name, "history") == 0)
 		printf("history: history\n    Display command history.\n");
 	else
-		return (-1);
+		return (-1); /* Unknown builtin */
 	return (0);
 }
 
 /**
  * builtin_help - Handle the help builtin command
- * @args: argument vector
+ * @args: argument vector (help [BUILTIN])
  * @sh: shell state
  *
  * Return: 1 (handled)
@@ -55,10 +55,10 @@ static int _print_help_one(char *name)
 int builtin_help(char **args, shell_t *sh)
 {
 	if (args[1] == NULL)
-		_print_help_all();
+		_print_help_all(); /* No argument: show all builtins */
 	else
 	{
-		if (_print_help_one(args[1]) == -1)
+		if (_print_help_one(args[1]) == -1) /* Unknown builtin */
 		{
 			fprintf(stderr, "%s: %d: help: no help topics match '%s'\n",
 				sh->name, sh->count, args[1]);
@@ -71,7 +71,7 @@ int builtin_help(char **args, shell_t *sh)
 }
 
 /**
- * builtin_history - Display command history
+ * builtin_history - Display the command history with line numbers
  * @sh: shell state
  *
  * Return: 1 (handled)
@@ -81,7 +81,7 @@ int builtin_history(shell_t *sh)
 	int i;
 
 	for (i = 0; i < sh->hist_count; i++)
-		printf("%5d  %s\n", i, sh->hist[i]);
+		printf("%5d  %s\n", i, sh->hist[i]); /* Number + command */
 	sh->status = 0;
 	return (1);
 }
