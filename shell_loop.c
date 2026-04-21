@@ -27,14 +27,11 @@ int shell_loop(shell_t *sh)
 	{
 		if (sh->interactive)
 			write(STDOUT_FILENO, "$ ", 2);
-		g_signal = 0;
 		nread = _getline(&line, &len, STDIN_FILENO);
+		if (nread == -2)
+			continue;
 		if (nread == -1)
-		{
-			if (g_signal)
-				continue;
 			break;
-		}
 		sh->count++;
 		_strip_newline(line, nread);
 		if (line[0] == '\0')
@@ -76,7 +73,7 @@ int file_mode(shell_t *sh, char *filename)
 	while (1)
 	{
 		nread = _getline(&line, &len, fd);
-		if (nread == -1)
+		if (nread <= 0)
 			break;
 		sh->count++;
 		_strip_newline(line, nread);

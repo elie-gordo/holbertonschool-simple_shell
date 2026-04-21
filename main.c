@@ -1,7 +1,5 @@
 #include "shell.h"
 
-volatile sig_atomic_t g_signal = 0;
-
 /**
  * sigint_handler - Handle SIGINT (Ctrl+C)
  * @sig: signal number (unused)
@@ -9,7 +7,6 @@ volatile sig_atomic_t g_signal = 0;
 void sigint_handler(int sig)
 {
 	(void)sig;
-	g_signal = 1;
 	write(STDOUT_FILENO, "\n", 1);
 }
 

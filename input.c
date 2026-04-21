@@ -7,7 +7,7 @@
  * @len: current length of valid data in buffer
  * @fd: file descriptor to read from
  *
- * Return: 0 on success, -1 on EOF or error
+ * Return: 0 on success, -1 on EOF, -2 on signal interrupt
  */
 static ssize_t _fill_buf(char *buf, size_t *pos, size_t *len, int fd)
 {
@@ -17,7 +17,12 @@ static ssize_t _fill_buf(char *buf, size_t *pos, size_t *len, int fd)
 	{
 		r = read(fd, buf, BUF_SIZE);
 		*pos = 0;
-		if (r <= 0)
+		if (r == -1)
+		{
+			*len = 0;
+			return (-2);
+		}
+		if (r == 0)
 		{
 			*len = 0;
 			return (-1);
@@ -57,7 +62,7 @@ static int _ensure_cap(char **lineptr, size_t *n, size_t needed)
  * @n: pointer to the buffer size
  * @fd: file descriptor to read from
  *
- * Return: number of characters read, or -1 on EOF/error
+ * Return: chars read, -1 on EOF, -2 on signal interrupt
  */
 ssize_t _getline(char **lineptr, size_t *n, int fd)
 {
@@ -65,6 +70,7 @@ ssize_t _getline(char **lineptr, size_t *n, int fd)
 	static size_t pos, len;
 	static int prev_fd = -1;
 	size_t lp = 0;
+	ssize_t rc;
 
 	if (fd != prev_fd)
 	{
@@ -81,7 +87,10 @@ ssize_t _getline(char **lineptr, size_t *n, int fd)
 	}
 	while (1)
 	{
-		if (_fill_buf(buf, &pos, &len, fd) == -1)
+		rc = _fill_buf(buf, &pos, &len, fd);
+		if (rc == -2)
+			return (-2);
+		if (rc == -1)
 			return (lp > 0 ? (ssize_t)lp : -1);
 		(*lineptr)[lp++] = buf[pos++];
 		if (_ensure_cap(lineptr, n, lp + 1) == -1)

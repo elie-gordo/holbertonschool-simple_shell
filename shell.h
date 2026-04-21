@@ -18,7 +18,6 @@
 #define HIST_MAX 4096
 
 extern char **environ;
-extern volatile sig_atomic_t g_signal;
 
 /**
  * struct shell_s - Shell state
