@@ -1,156 +1,120 @@
-# simple_shell
+# Simple Shell
 
-Interpreteur de commandes UNIX minimal ecrit en C (projet Holberton).
+A UNIX command line interpreter written in C as part of the Holberton School curriculum.
 
-## 1) Objectif du projet
+## Description
 
-Construire un shell capable de:
-- lire une commande depuis stdin,
-- la parser,
-- chercher un binaire executable,
-- creer un processus enfant,
-- executer la commande avec execve,
-- attendre la fin de l'enfant,
-- recommencer.
+**hsh** is a simple UNIX shell that reads commands from standard input or a file, parses them, resolves executables via PATH, and executes them using `fork` and `execve`.
 
-Ce depot couvre les tasks 0 a 6, c'est-a-dire jusqu'a la version 1.0:
-- support des arguments,
-- recherche dans PATH,
-- built-ins exit et env.
+### Features
 
-## 2) Compilation
+- Interactive and non-interactive modes
+- PATH-based command resolution
+- Command arguments support
+- Built-in commands: `exit`, `env`, `setenv`, `unsetenv`, `cd`, `alias`, `help`, `history`
+- Command separators: `;`, `&&`, `||`
+- Variable expansion: `$?`, `$$`, `$VAR`
+- Comment support (`#`)
+- Signal handling (Ctrl+C does not quit the shell)
+- Custom `getline` using buffered `read()` (no libc `getline`)
+- Custom tokenizer (no `strtok`)
+- File input mode: `./hsh filename`
+- Command history with persistent storage
 
-Commande imposee:
+## Compilation
 
+```
 gcc -Wall -Werror -Wextra -pedantic -std=gnu89 *.c -o hsh
+```
 
-## 3) Utilisation
+## Usage
 
-Mode interactif:
+### Interactive mode
 
-./hsh
-#cisfun$ /bin/ls
-#cisfun$ ls -l
-#cisfun$ env
-#cisfun$ exit
+```
+$ ./hsh
+$ ls -la
+$ echo hello
+$ exit
+```
 
-Mode non interactif:
+### Non-interactive mode
 
-echo "/bin/ls" | ./hsh
+```
+$ echo "ls -la" | ./hsh
+$ echo "ls /var ; echo done" | ./hsh
+```
 
-## 4) Fonctionnalites par task
+### File input mode
 
-### Task 0 - README, man, AUTHORS
-- README present
-- page man presente: man_1_simple_shell
-- fichier AUTHORS present
+```
+$ ./hsh commands.txt
+```
 
-### Task 1 - Betty
-- code structure en fichiers courts
-- commentaires de fonctions presents
-- indentation claire et uniforme
+## Built-in Commands
 
-### Task 2 - Simple shell 0.1
-- prompt en interactif
-- lecture de ligne avec getline
-- execution d'une commande simple
-- gestion EOF (Ctrl+D)
-- gestion des erreurs
+| Command | Description |
+|---------|-------------|
+| `exit [status]` | Exit the shell with optional status code |
+| `env` | Print current environment variables |
+| `setenv VAR VALUE` | Set or modify an environment variable |
+| `unsetenv VAR` | Remove an environment variable |
+| `cd [dir]` | Change directory (`cd -` for previous, `cd` for HOME) |
+| `alias [name[='value']]` | Define or display aliases |
+| `help [builtin]` | Display help for built-in commands |
+| `history` | Display command history |
 
-### Task 3 - Simple shell 0.2
-- gestion des arguments (ex: ls -l /tmp)
+## Operators
 
-### Task 4 - Simple shell 0.3
-- recherche de la commande dans PATH
-- pas de fork si commande introuvable
+| Operator | Description |
+|----------|-------------|
+| `;` | Execute commands sequentially |
+| `&&` | Execute next command only if previous succeeded |
+| `\|\|` | Execute next command only if previous failed |
 
-### Task 5 - Simple shell 0.4
-- built-in exit
+## File Structure
 
-### Task 6 - Simple shell 1.0
-- built-in env
+| File | Description |
+|------|-------------|
+| `shell.h` | Header with struct, defines, and prototypes |
+| `main.c` | Entry point and signal handler |
+| `shell_loop.c` | Main REPL loop and file mode |
+| `input.c` | Custom `_getline` using buffered read |
+| `tokenizer.c` | Custom tokenizer (no strtok) |
+| `operators.c` | Handling of `;`, `&&`, `\|\|` operators |
+| `variables.c` | Variable expansion and comment stripping |
+| `path.c` | PATH resolution |
+| `execute.c` | Fork, execve, and wait |
+| `builtins.c` | Built-in dispatcher, exit, env |
+| `builtins2.c` | setenv, unsetenv, cd |
+| `builtins3.c` | alias |
+| `builtins4.c` | help, history |
+| `environ.c` | Dynamic environment management |
+| `history.c` | History load, save, and management |
+| `helpers.c` | Utility functions (atoi, itoa, is_number) |
+| `man_1_simple_shell` | Man page |
 
-## 5) Architecture des fichiers
+## Examples
 
-- shell.h: includes, prototypes, organisation globale
-- main.c: point d'entree
-- shell.c: boucle principale
-- parser.c: decoupage de la ligne en tokens
-- path.c: resolution d'une commande via PATH
-- execute.c: fork/execve/waitpid + gestion status
-- builtins.c: built-ins exit et env
-- man_1_simple_shell: page de manuel
-- AUTHORS: contributeurs
+```
+$ echo "ls" | ./hsh
+file1 file2 file3
 
-## 6) Notions techniques a maitriser
+$ echo "qwerty" | ./hsh
+./hsh: 1: qwerty: not found
 
-### Histoire
-- UNIX originel: Ken Thompson et Dennis Ritchie
-- Premier shell UNIX: Ken Thompson
-- Langage B: Ken Thompson
+$ echo 'echo $?' | ./hsh
+0
 
-### Processus
-- pid: identifiant du processus courant
-- ppid: identifiant du parent
-- fork: duplique le processus
-- execve: remplace l'image du processus courant
-- waitpid: attend la fin d'un enfant
+$ echo "ls /var && echo success" | ./hsh
+backups cache crash lib local lock log mail opt run snap spool tmp
+success
 
-### Environnement
-- envp/environ: tableau NAME=VALUE
-- PATH: liste de repertoires ou chercher les commandes
+$ echo "ls /fake || echo fallback" | ./hsh
+ls: cannot access '/fake': No such file or directory
+fallback
+```
 
-### Parsing
-- strtok sur espaces/tabulations
-- tableau argv termine par NULL pour execve
+## Authors
 
-### Erreurs
-- commande introuvable: "prog: line: cmd: not found"
-- erreurs systeme: perror
-
-## 7) Limites volontaires (scope du projet)
-
-Non implemente:
-- pipes
-- redirections
-- operateurs ; && ||
-- guillemets avances
-- variables shell personnalisees
-
-## 8) Exemples de tests utiles
-
-Commande valide:
-
-echo "/bin/echo OK" | ./hsh
-
-Commande via PATH:
-
-echo "ls" | ./hsh
-
-Commande introuvable:
-
-echo "qwerty" | ./hsh
-
-Built-in env:
-
-echo "env" | ./hsh
-
-Sortie propre:
-
-echo "exit" | ./hsh
-
-## 9) Ressources
-
-- man sh
-- man fork
-- man execve
-- man waitpid
-- man getline
-- man environ
-
-## 10) Auteurs
-
-Voir le fichier AUTHORS.
-
-- Elie <elliott.lanza@gmail.com>
-- toxicgiosue <toxicgiosue@gmail.com>
+See the [AUTHORS](AUTHORS) file.

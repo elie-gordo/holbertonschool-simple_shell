@@ -1,61 +1,64 @@
 #include "shell.h"
 
 /**
- * print_not_found - Affiche l'erreur standard commande introuvable.
- * @prog_name: Nom du shell (argv[0]).
- * @cmd_count: Numero de la ligne de commande.
- * @cmd: Commande non resolue.
+ * print_not_found - Print command not found error to stderr
+ * @sh: shell state
+ * @cmd: command that was not found
  */
-void print_not_found(char *prog_name, int cmd_count, char *cmd)
+void print_not_found(shell_t *sh, char *cmd)
 {
-	fprintf(stderr, "%s: %d: %s: not found\n", prog_name, cmd_count, cmd);
+	fprintf(stderr, "%s: %d: %s: not found\n",
+		sh->name, sh->count, cmd);
 }
 
 /**
- * execute_command - Execute une commande externe apres resolution PATH.
- * @args: Tableau argv (args[0] = commande).
- * @prog_name: Nom du shell pour les erreurs systeme.
- * @envp: Tableau d'environnement passe a execve.
- * @cmd_count: Numero de ligne pour les messages d'erreur.
- *
- * Return: Code de statut de la commande.
+ * _child_exec - Execute command in child process
+ * @args: argument vector
+ * @cmd_path: resolved path to executable
+ * @sh: shell state
  */
-int execute_command(char **args, char *prog_name, char **envp, int cmd_count)
+static void _child_exec(char **args, char *cmd_path, shell_t *sh)
+{
+	signal(SIGINT, SIG_DFL);
+	execve(cmd_path, args, sh->env);
+	perror(sh->name);
+	free(cmd_path);
+	_exit(127);
+}
+
+/**
+ * execute_cmd - Fork and execute an external command
+ * @args: argument vector (args[0] = command)
+ * @sh: shell state
+ *
+ * Return: exit status of the command
+ */
+int execute_cmd(char **args, shell_t *sh)
 {
 	pid_t pid;
-	int status;
+	int wstatus;
 	char *cmd_path;
 
-	/* On evite fork si la commande n'existe pas (exigence task 0.3). */
-	cmd_path = find_command(args[0], envp);
+	cmd_path = find_command(args[0], sh);
 	if (cmd_path == NULL)
 	{
-		print_not_found(prog_name, cmd_count, args[0]);
+		print_not_found(sh, args[0]);
 		return (127);
 	}
-
 	pid = fork();
 	if (pid == -1)
 	{
 		free(cmd_path);
-		perror(prog_name);
+		perror(sh->name);
 		return (1);
 	}
-
 	if (pid == 0)
-	{
-		execve(cmd_path, args, envp);
-		perror(prog_name);
-		free(cmd_path);
-		_exit(127);
-	}
-
-	waitpid(pid, &status, 0);
+		_child_exec(args, cmd_path, sh);
+	waitpid(pid, &wstatus, 0);
 	free(cmd_path);
-
-	if (WIFEXITED(status))
-		return (WEXITSTATUS(status));
-	if (WIFSIGNALED(status))
-		return (128 + WTERMSIG(status));
+	if (WIFEXITED(wstatus))
+		return (WEXITSTATUS(wstatus));
+	if (WIFSIGNALED(wstatus))
+		return (128 + WTERMSIG(wstatus));
 	return (1);
 }

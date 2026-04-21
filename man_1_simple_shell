@@ -1,88 +1,127 @@
 .TH HSH 1 "April 2026" "simple_shell" "User Commands"
 .SH NAME
-hsh \- interpreteur de commandes UNIX minimal
+hsh \- simple UNIX command line interpreter
 .SH SYNOPSIS
 .B hsh
+.RI [ filename ]
 .SH DESCRIPTION
 .B hsh
-lit des commandes depuis l'entree standard puis les execute.
-
-Fonctionnalites implementees (tasks 0 a 6):
-.RS
-- prompt en mode interactif
-.br
-- parsing de ligne avec arguments
-.br
-- recherche des executables dans PATH
-.br
-- built-ins: exit, env
-.br
-- gestion EOF (Ctrl+D)
-.RE
-
-Le format d'erreur pour une commande introuvable suit la forme:
-.RS
-prog_name: line_number: command: not found
-.RE
-
-Les commandes externes sont executees via
-.BR fork (2)
-et
-.BR execve (2),
-puis le parent attend la fin avec
-.BR waitpid (2).
-.SH RETURN VALUE
-Le shell retourne le dernier statut de commande connu.
-.SH ENVIRONMENT
-.B PATH
-est utilise pour rechercher les executables.
-
-Toutes les autres variables d'environnement sont heritees.
+is a simple UNIX shell that reads and executes commands from standard input,
+or from a file if one is provided as argument. It supports interactive and
+non-interactive modes.
+.PP
+In interactive mode, a prompt
+.B "$ "
+is displayed before each command. In non-interactive mode (piped input or
+file mode), no prompt is shown.
+.SH COMMANDS
+The shell searches for executable files in the directories listed in
+.BR PATH .
+If the command contains a slash, it is used as a direct path.
+.PP
+Commands can be separated using
+.B ;
+(sequential),
+.B &&
+(logical AND), or
+.B ||
+(logical OR).
 .SH BUILTINS
 .TP
-.B exit
-Quitte le shell.
+.B exit \fR[\fIstatus\fR]
+Exit the shell. If
+.I status
+is given, exit with that value.
 .TP
 .B env
-Affiche l'environnement courant.
+Print the current environment.
+.TP
+.B setenv \fIVARIABLE VALUE\fR
+Set or modify an environment variable.
+.TP
+.B unsetenv \fIVARIABLE\fR
+Remove an environment variable.
+.TP
+.B cd \fR[\fIdirectory\fR]
+Change the current directory. With no argument, change to
+.BR $HOME .
+With
+.BR \- ,
+change to the previous directory
+.RB ( $OLDPWD ).
+Updates
+.B PWD
+and
+.BR OLDPWD .
+.TP
+.B alias \fR[\fIname\fR[=\fI'value'\fR] ...]
+With no arguments, print all aliases. With names only, print those aliases.
+With
+.IR name = value
+pairs, define or update aliases.
+.TP
+.B help \fR[\fIBUILTIN\fR]
+Display help information for built-in commands.
+.TP
+.B history
+Display the command history with line numbers.
+.SH VARIABLES
+.TP
+.B $?
+Expands to the exit status of the last command.
+.TP
+.B $$
+Expands to the process ID of the shell.
+.TP
+.BI $ VARIABLE
+Expands to the value of the environment variable.
+.SH COMMENTS
+A
+.B #
+character preceded by a space or at the start of a line begins a comment.
+Everything after it is ignored.
+.SH SIGNALS
+The shell ignores
+.BR SIGINT " (Ctrl+C)"
+in interactive mode. Child processes receive the default signal handling.
+.SH EXIT STATUS
+The shell returns the exit status of the last command executed, or 127
+if a command is not found.
 .SH FILES
 .TP
-.B README.md
-Documentation complete du projet.
-.TP
-.B AUTHORS
-Liste des contributeurs.
-.TP
-.B man_1_simple_shell
-Cette page de manuel.
+.B ~/.simple_shell_history
+History file loaded at startup and saved on exit.
 .SH EXAMPLES
-Mode interactif:
+Interactive mode:
 .PP
-.B ./hsh
-.br
-#cisfun$ ls -l
-.br
-#cisfun$ env
-.br
-#cisfun$ exit
-
-Mode non interactif:
+.nf
+$ ./hsh
+$ ls -l /tmp
+$ echo $?
+0
+$ exit
+.fi
 .PP
-.B echo "/bin/ls" | ./hsh
+Non-interactive mode:
+.PP
+.nf
+$ echo "ls -la" | ./hsh
+$ echo "ls /var && echo ok" | ./hsh
+.fi
+.PP
+File mode:
+.PP
+.nf
+$ ./hsh commands.txt
+.fi
 .SH SEE ALSO
 .BR sh (1),
+.BR dash (1),
+.BR bash (1),
 .BR fork (2),
 .BR execve (2),
-.BR waitpid (2),
-.BR environ (7)
+.BR waitpid (2)
 .SH AUTHORS
-Consulter le fichier
+See the
 .B AUTHORS
-pour les contributeurs.
-.PP
-Contributeurs:
-.RS
-Elie <elliott.lanza@gmail.com>
-.br
-toxicgiosue <toxicgiosue@gmail.com>
-.RE
+file for the list of contributors.

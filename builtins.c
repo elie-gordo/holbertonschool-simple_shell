@@ -1,46 +1,85 @@
 #include "shell.h"
 
 /**
- * print_env - Affiche toutes les variables d'environnement.
- * @envp: Tableau envp recu par le programme.
+ * builtin_exit - Handle the exit builtin command
+ * @args: argument vector
+ * @sh: shell state
+ *
+ * Return: 1 (handled)
  */
-static void print_env(char **envp)
+static int builtin_exit(char **args, shell_t *sh)
 {
-	int i;
+	int exit_status;
 
-	i = 0;
-	while (envp[i] != NULL)
+	if (args[1] != NULL)
 	{
-		printf("%s\n", envp[i]);
-		i++;
+		if (!_is_number(args[1]))
+		{
+			fprintf(stderr, "%s: %d: exit: Illegal number: %s\n",
+				sh->name, sh->count, args[1]);
+			sh->status = 2;
+			return (1);
+		}
+		exit_status = _atoi_custom(args[1]);
+		sh->status = exit_status;
 	}
+	sh->should_exit = 1;
+	return (1);
 }
 
 /**
- * handle_builtin - Gere les built-ins supportes par le projet.
- * @args: Arguments parsees de la ligne courante.
- * @envp: Environnement courant.
- * @should_exit: Flag de sortie a activer pour "exit".
+ * builtin_env - Print all environment variables
+ * @sh: shell state
  *
- * Return: 1 si built-in traite, 0 sinon.
- *
- * Description:
- * Task 0.4: support de "exit" sans gestion d'arguments obligatoire.
- * Task 1.0: support de "env" pour afficher l'environnement.
+ * Return: 1 (handled)
  */
-int handle_builtin(char **args, char **envp, int *should_exit)
+static int builtin_env(shell_t *sh)
 {
-	if (strcmp(args[0], "exit") == 0)
-	{
-		*should_exit = 1;
-		return (1);
-	}
+	int i;
 
+	for (i = 0; i < sh->env_count; i++)
+		printf("%s\n", sh->env[i]);
+	sh->status = 0;
+	return (1);
+}
+
+/**
+ * _is_exit - Check if command is exit
+ * @cmd: command string
+ *
+ * Return: 1 if match, 0 otherwise
+ */
+static int _is_exit(char *cmd)
+{
+	return (strcmp(cmd, "exit") == 0);
+}
+
+/**
+ * run_builtin - Dispatch to the appropriate builtin handler
+ * @args: argument vector
+ * @sh: shell state
+ *
+ * Return: 1 if a builtin was handled, 0 if not a builtin
+ */
+int run_builtin(char **args, shell_t *sh)
+{
+	if (args == NULL || args[0] == NULL)
+		return (0);
+	if (_is_exit(args[0]))
+		return (builtin_exit(args, sh));
 	if (strcmp(args[0], "env") == 0)
-	{
-		print_env(envp);
-		return (1);
-	}
-
+		return (builtin_env(sh));
+	if (strcmp(args[0], "setenv") == 0)
+		return (builtin_setenv(args, sh));
+	if (strcmp(args[0], "unsetenv") == 0)
+		return (builtin_unsetenv(args, sh));
+	if (strcmp(args[0], "cd") == 0)
+		return (builtin_cd(args, sh));
+	if (strcmp(args[0], "alias") == 0)
+		return (builtin_alias(args, sh));
+	if (strcmp(args[0], "help") == 0)
+		return (builtin_help(args, sh));
+	if (strcmp(args[0], "history") == 0)
+		return (builtin_history(sh));
 	return (0);
 }

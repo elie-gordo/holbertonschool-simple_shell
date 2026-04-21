@@ -1,13 +1,13 @@
 #include "shell.h"
 
 /**
- * build_full_path - Construit "repertoire/commande".
- * @dir: Repertoire issu de PATH.
- * @cmd: Nom de commande a chercher.
+ * _build_path - Construct full path from directory and command
+ * @dir: directory path
+ * @cmd: command name
  *
- * Return: Chaine allouee contenant le chemin complet, ou NULL.
+ * Return: allocated string "dir/cmd", or NULL on failure
  */
-static char *build_full_path(char *dir, char *cmd)
+static char *_build_path(char *dir, char *cmd)
 {
 	int len;
 	char *full;
@@ -16,75 +16,78 @@ static char *build_full_path(char *dir, char *cmd)
 	full = malloc(len);
 	if (full == NULL)
 		return (NULL);
-
 	sprintf(full, "%s/%s", dir, cmd);
 	return (full);
 }
 
 /**
- * get_path_value - Recupere la valeur brute de PATH depuis envp.
- * @envp: Tableau d'environnement.
+ * _next_dir - Extract next directory from PATH string
+ * @path: PATH string
+ * @start: pointer to current position (updated after extraction)
+ * @dir: buffer to write directory into
  *
- * Return: Pointeur vers la valeur de PATH, ou NULL si absente.
+ * Return: 1 if a directory was found, 0 if end of string
  */
-static char *get_path_value(char **envp)
+static int _next_dir(char *path, int *start, char *dir)
 {
-	int i;
+	int i = *start, j = 0;
 
-	i = 0;
-	while (envp[i] != NULL)
-	{
-		if (strncmp(envp[i], "PATH=", 5) == 0)
-			return (envp[i] + 5);
+	if (path[i] == '\0')
+		return (0);
+	while (path[i] && path[i] != ':')
+		dir[j++] = path[i++];
+	dir[j] = '\0';
+	if (path[i] == ':')
 		i++;
+	*start = i;
+	return (1);
+}
+
+/**
+ * _search_path - Search for command in PATH directories
+ * @cmd: command name to find
+ * @path_value: the PATH environment variable value
+ *
+ * Return: allocated full path if found, NULL otherwise
+ */
+static char *_search_path(char *cmd, char *path_value)
+{
+	int pos = 0;
+	char dir[PATH_MAX], *full;
+
+	while (_next_dir(path_value, &pos, dir))
+	{
+		if (dir[0] == '\0')
+			strcpy(dir, ".");
+		full = _build_path(dir, cmd);
+		if (full && access(full, X_OK) == 0)
+			return (full);
+		free(full);
 	}
 	return (NULL);
 }
 
 /**
- * find_command - Resout une commande en chemin executable.
- * @cmd: Commande demandee (nom simple ou chemin avec '/').
- * @envp: Tableau d'environnement.
+ * find_command - Resolve a command name to an executable path
+ * @cmd: command name (may be absolute/relative or just a name)
+ * @sh: shell state (for environment access)
  *
- * Return: Chemin alloue de la commande, ou NULL si introuvable.
+ * Return: allocated path string, or NULL if not found
  */
-char *find_command(char *cmd, char **envp)
+char *find_command(char *cmd, shell_t *sh)
 {
 	char *path_value;
-	char *paths;
-	char *dir;
-	char *full;
 
-	/* Cas 1: l'utilisateur a fourni un chemin absolu/relatif. */
+	if (cmd == NULL || cmd[0] == '\0')
+		return (NULL);
 	if (strchr(cmd, '/') != NULL)
 	{
 		if (access(cmd, X_OK) == 0)
 			return (strdup(cmd));
 		return (NULL);
 	}
-
-	/* Cas 2: on cherche dans PATH. */
-	path_value = get_path_value(envp);
+	path_value = _getenv(sh, "PATH");
 	if (path_value == NULL)
 		return (NULL);
-
-	paths = strdup(path_value);
-	if (paths == NULL)
-		return (NULL);
-
-	dir = strtok(paths, ":");
-	while (dir != NULL)
-	{
-		full = build_full_path(dir, cmd);
-		if (full != NULL && access(full, X_OK) == 0)
-		{
-			free(paths);
-			return (full);
-		}
-		free(full);
-		dir = strtok(NULL, ":");
-	}
-
-	free(paths);
-	return (NULL);
+	return (_search_path(cmd, path_value));
 }
