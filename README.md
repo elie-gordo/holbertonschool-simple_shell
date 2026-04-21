@@ -151,3 +151,6 @@ echo "exit" | ./hsh
 ## 10) Auteurs
 
 Voir le fichier AUTHORS.
+
+- Elie <elliott.lanza@gmail.com>
+- toxicgiosue <toxicgiosue@gmail.com>
