@@ -1,295 +1,177 @@
-# Preparation man review - simple_shell
+# Preparation man review - simple_shell (tasks 0-6)
 
-Ce guide est concu pour reviser le code fichier par fichier et anticiper les questions.
+Ce guide permet de reviser le code fichier par fichier et d'anticiper les questions.
 
 ## 1) Parcours de code (ordre conseille)
 
-1. shell.h - contrat global, struct shell_s, prototypes
-2. main.c - point d'entree, signal handler, init/cleanup
-3. shell_loop.c - boucle REPL + mode fichier
-4. input.c - _getline custom (buffer + read)
-5. tokenizer.c - decoupage en tokens (sans strtok)
-6. operators.c - gestion ;  &&  ||, execution de segments
-7. variables.c - expansion $?, $$, $VAR + suppression commentaires
-8. path.c - resolution commande via PATH
-9. execute.c - fork/execve/waitpid
-10. builtins.c - dispatch + exit + env
-11. builtins2.c - setenv, unsetenv, cd
-12. builtins3.c - alias
-13. builtins4.c - help, history
-14. environ.c - gestion dynamique de l'environnement
-15. history.c - chargement/sauvegarde historique
-16. helpers.c - _atoi_custom, _itoa, _is_number
+1. `shell.h` — contrat global, prototypes
+2. `main.c` — point d'entree
+3. `shell.c` — boucle REPL
+4. `parser.c` — tokenisation (avec `strtok`)
+5. `path.c` — resolution de la commande via `PATH`
+6. `execute.c` — `fork` / `execve` / `waitpid`
+7. `builtins.c` — dispatcher + `exit` + `env`
 
-## 2) shell.h - ce qu'il faut dire
+## 2) shell.h — ce qu'il faut dire
 
-- role: contrat global entre tous les modules
-- struct shell_s: centralise tout l'etat du shell (name, count, status,
-  interactive, should_exit, env, aliases, history)
-- includes systeme necessaires au projet
-- prototypes de chaque fonction exposee
-- defines: BUF_SIZE, MAX_ALIASES, HIST_MAX
-- extern g_signal: seule variable globale, pour le signal handler
-- include guard pour eviter inclusions multiples
+- Role : contrat global entre tous les modules.
+- Declare `extern char **environ` (fourni par la libc).
+- Prototypes de chaque fonction exposee :
+  - `shell.c` : `shell_loop`
+  - `parser.c` : `parse_line`, `free_args`
+  - `path.c` : `find_command`
+  - `execute.c` : `execute_cmd`, `print_not_found`
+  - `builtins.c` : `handle_builtin`
+- Includes systeme : `<stdio.h>`, `<stdlib.h>`, `<string.h>`, `<unistd.h>`, `<sys/types.h>`, `<sys/wait.h>`.
+- Include guard `#ifndef SHELL_H ... #endif`.
 
-Question piege:
-Pourquoi un struct plutot que des variables globales ?
-Reponse:
-Pour encapsuler l'etat, eviter les globals (Betty les interdit sauf g_signal),
-et pouvoir passer tout le contexte en un seul pointeur.
+Question piege :
+Pourquoi `extern char **environ` et pas `getenv` ?
+Reponse :
+Pour pouvoir parcourir l'environnement dans le built-in `env` et chercher la variable `PATH` dans `path.c`.
 
-## 3) main.c - ce qu'il faut dire
+## 3) main.c — ce qu'il faut dire
 
-- sigint_handler: ecrit '\n', positionne g_signal, c'est tout
-  (pas de printf car pas async-signal-safe)
-- init_shell: memset + copie de l'env + chargement historique
-- cleanup_shell: sauvegarde historique + liberation de toutes les ressources
-- main: init, signal, dispatch (file_mode ou shell_loop), cleanup
+- `main(int ac, char **av)` :
+  - ignore `ac` avec `(void)ac;`
+  - appelle et retourne `shell_loop(av[0])`
+- On passe `av[0]` pour que les messages d'erreur commencent par le nom du programme (`./hsh`).
 
-Question piege:
-Pourquoi write() et pas printf() dans le signal handler ?
-Reponse:
-printf n'est pas async-signal-safe, write est garanti safe dans un handler.
+Question piege :
+Pourquoi passer `av[0]` ?
+Reponse :
+Pour le format d'erreur conforme a `/bin/sh` : `./hsh: 1: cmd: not found`.
 
-## 4) shell_loop.c - explication ligne par ligne
+## 4) shell.c — explication pas a pas
 
-- _strip_newline: retire le '\n' final de la ligne lue
-- shell_loop:
-  - affiche prompt uniquement si interactif
-  - reset g_signal avant chaque lecture
-  - _getline lit la ligne
-  - si -1 et g_signal: Ctrl+C, on continue (nouveau prompt)
-  - si -1 sans signal: EOF (Ctrl+D), on sort
-  - count++ a chaque ligne
-  - strip newline, skip lignes vides
-  - add_history avant traitement
-  - strip_comments, skip si vide apres
-  - handle_operators execute la ligne
-  - if should_exit: break
-  - '\n' final en interactif pour sortie propre
+Boucle `shell_loop(char *prog_name)` :
+1. `interactive = isatty(STDIN_FILENO)` : teste si on est dans un terminal.
+2. Boucle infinie :
+   - si interactif, `write(STDOUT_FILENO, "$ ", 2)` (prompt) ;
+   - `nread = getline(&line, &len, stdin)` ;
+   - si `nread == -1` (EOF / Ctrl+D) : `break` ;
+   - `cmd_count++` ;
+   - strip du `\n` final ;
+   - skip si ligne vide ;
+   - `parse_line(line)` pour obtenir `args` ;
+   - `handle_builtin(args, &should_exit)` ;
+   - sinon `execute_cmd(args, prog_name, cmd_count)` qui met a jour `status` ;
+   - `free_args(args)` ;
+   - si `should_exit`, `break`.
+3. En sortie : `\n` final si interactif, `free(line)`, retourne `status`.
 
-- file_mode:
-  - ouvre le fichier, erreur 127 si introuvable
-  - meme boucle sans prompt
-  - ferme le fd en fin
+Question piege :
+Pourquoi `write` et pas `printf` pour le prompt ?
+Reponse :
+`write` est un syscall direct sans bufferisation : le prompt s'affiche immediatement.
 
-Question piege:
-Pourquoi add_history AVANT strip_comments ?
-Reponse:
-Pour conserver la ligne originale dans l'historique, commentaires inclus.
+## 5) parser.c — tokenisation
 
-## 5) input.c - custom _getline
+- `count_tokens(char *line)` (static) : fait un `strdup` car `strtok` modifie sa source, boucle `strtok(copy, " \t")` pour compter, puis `free(copy)`.
+- `parse_line(char *line)` :
+  - compte les tokens, retourne `NULL` si 0 ;
+  - `malloc` le tableau de taille `total + 1` ;
+  - remplit avec `strtok(line, " \t")` sur la ligne originale ;
+  - termine par `args[i] = NULL` (requis par `execve`).
+- `free_args(char **args)` : ne free que le tableau, pas les chaines (elles pointent dans le buffer de `getline`).
 
-- _fill_buf: quand le buffer statique est vide, lit BUF_SIZE octets avec read()
-- _ensure_cap: double la taille du lineptr si necessaire
-- _getline:
-  - variables statiques: buf[BUF_SIZE], pos, len, prev_fd
-  - si le fd change (ex: historique puis stdin), reset du buffer
-  - alloue lineptr si NULL
-  - boucle: remplir buffer, copier char par char jusqu'a '\n' ou EOF
-  - retourne nombre de chars ou -1
+Question piege :
+Pourquoi `strdup` dans `count_tokens` ?
+Reponse :
+`strtok` place des `\0` dans la chaine source ; il faut travailler sur une copie pour ne pas detruire la ligne avant le second `strtok` dans `parse_line`.
 
-Question piege:
-Pourquoi des variables statiques ?
-Reponse:
-Pour conserver le buffer entre les appels. read() peut lire plus qu'une ligne,
-les chars restants doivent etre disponibles au prochain appel.
+## 6) path.c — resolution `PATH`
 
-## 6) tokenizer.c - sans strtok
+- `build_full_path(dir, cmd)` : alloue `len = strlen(dir) + strlen(cmd) + 2`, fait `sprintf(full, "%s/%s", dir, cmd)`.
+- `get_path_value()` : parcourt `environ`, cherche l'entree qui commence par `"PATH="`, retourne un pointeur sur le caractere qui suit le `=`.
+- `search_in_path(cmd, path_copy)` : `strtok(path_copy, ":")`, pour chaque `dir` : construit le chemin complet, teste `access(full, X_OK)`, retourne la premiere correspondance, sinon `free` et continue.
+- `find_command(cmd)` :
+  - si `cmd` contient un `/` : teste directement `access(X_OK)`, retourne `strdup(cmd)` si OK, sinon `NULL` ;
+  - sinon : `get_path_value`, `strdup` de `PATH`, `search_in_path`, `free` du copy.
 
-- _count_words: compte les mots, gere les quotes simples (in_q flag)
-- _get_word: extrait un mot, respecte les guillemets simples
-- tokenize: alloue le tableau, remplit avec _get_word
-- free_tokens: libere chaque token puis le tableau
+Question piege :
+Pourquoi ne pas fork si la commande est introuvable ?
+Reponse :
+Exigence de la tache 0.3 : eviter un fork inutile. On appelle `find_command` AVANT `fork` ; si `NULL`, on affiche l'erreur et on retourne `127`.
 
-Question piege:
-Pourquoi gerer les guillemets simples ?
-Reponse:
-Pour le built-in alias: "alias ll='ls -la'" doit rester un seul token.
+## 7) execute.c — fork / execve / wait
 
-## 7) operators.c - ;  &&  ||
+- `print_not_found(prog, line, cmd)` : `fprintf(stderr, "%s: %d: %s: not found\n", prog, line, cmd)`.
+- `execute_cmd(args, prog_name, cmd_count)` :
+  1. `cmd_path = find_command(args[0])` ;
+  2. si `NULL` : `print_not_found`, retourne `127` (pas de fork) ;
+  3. `pid = fork()` ;
+     - `-1` : `perror`, `free(cmd_path)`, retourne `1` ;
+     - `0` (enfant) : `execve(cmd_path, args, environ)` ; si retour, `perror` + `_exit(127)` ;
+     - parent : `waitpid(pid, &wstatus, 0)`, `free(cmd_path)` ;
+  4. retourne `WEXITSTATUS(wstatus)`, ou `128 + WTERMSIG` si tue par signal, ou `1` en fallback.
 
-- _find_op: parcourt la ligne, retourne le type d'operateur et sa position
-- _build_alias_line: reconstruit la ligne apres expansion d'alias
-- exec_segment: pipeline complet pour un segment:
-  1. expand_variables (remplace $?, $$, $VAR)
-  2. tokenize
-  3. expansion alias si args[0] est un alias
-  4. run_builtin ou execute_cmd
-- handle_operators: decoupe par operateurs, execute chaque segment
-  selon la logique ; (toujours), && (si succes), || (si echec)
+Question piege :
+Pourquoi `_exit` et pas `exit` dans l'enfant ?
+Reponse :
+`exit` flush les buffers stdio dupliques par `fork` (double flush possible). `_exit` termine immediatement sans toucher aux buffers.
 
-Question piege:
-Comment fonctionne la logique && / || ?
-Reponse:
-On maintient un flag "run". Apres chaque operateur:
-- ; : run = 1 (toujours)
-- && : run = (status == 0)
-- || : run = (status != 0)
-Le segment suivant n'est execute que si run est vrai.
+## 8) builtins.c — dispatch
 
-## 8) variables.c - expansion
+- `print_env()` (static) : boucle `while (environ[i])` et `printf("%s\n", environ[i])`.
+- `handle_builtin(args, should_exit)` :
+  - `strcmp(args[0], "exit") == 0` : `*should_exit = 1` ; retourne `1`.
+  - `strcmp(args[0], "env") == 0` : `print_env()` ; retourne `1`.
+  - sinon : retourne `0`.
 
-- strip_comments: met '\0' au premier # precede d'un espace
-- _append: ajoute une chaine au buffer resultat (realloc si necessaire)
-- _expand_dollar: gere $? $$ et $VARIABLE
-- expand_variables: construit une nouvelle chaine avec toutes les expansions
+Question piege :
+Pourquoi un built-in plutot qu'un binaire externe pour `exit` ?
+Reponse :
+`exit` doit terminer le processus shell lui-meme, pas un enfant. Si c'etait un externe, on ferait `fork + execve` et seul l'enfant quitterait, pas le shell parent.
 
-Question piege:
-Que se passe-t-il si $VARIABLE n'existe pas ?
-Reponse:
-_getenv retourne NULL, _append ne fait rien, la variable est remplacee par "".
+## 9) Questions pieges frequentes
 
-## 9) path.c - resolution PATH
+Q : Difference entre `/bin/ls` et `ls` ?
+R : `/bin/ls` est un chemin explicite, on teste directement `access`. `ls` doit etre resolu via `PATH`.
 
-- _build_path: construit "repertoire/commande" avec sprintf
-- _next_dir: extrait le prochain repertoire de PATH (sans strtok, manuellement)
-- _search_path: boucle sur les repertoires, teste access(X_OK)
-- find_command: dispatch entre chemin absolu et recherche PATH
+Q : Pourquoi `args` doit finir par `NULL` ?
+R : C'est le contrat d'`execve` pour savoir ou s'arrete `argv`.
 
-Question piege:
-Pourquoi ne pas fork si commande introuvable ?
-Reponse:
-Exigence task 0.3: eviter un fork inutile. On verifie AVANT avec find_command.
+Q : Comment gerez-vous Ctrl+D ?
+R : `getline` retourne `-1` quand `read` lit 0 octet (EOF) ; le loop sort avec `break`.
 
-## 10) execute.c - fork/execve/waitpid
+Q : Que retourne votre shell si la commande est introuvable ?
+R : `127`, conforme a la convention shell.
 
-- print_not_found: format "prog: line: cmd: not found"
-- _child_exec: remet SIGINT a SIG_DFL, appelle execve, _exit(127) si echec
-- execute_cmd: find_command, fork, _child_exec dans enfant, waitpid dans parent
+Q : Pourquoi ne pas utiliser `system()` ?
+R : Le sujet impose `fork` / `execve` pour comprendre la gestion des processus.
 
-Question piege:
-Pourquoi signal(SIGINT, SIG_DFL) dans l'enfant ?
-Reponse:
-Le parent ignore SIGINT (Ctrl+C ne quitte pas le shell), mais l'enfant
-doit pouvoir etre interrompu normalement.
+Q : Avez-vous des variables globales ?
+R : Aucune dans notre code. On utilise `environ` de la libc, qui est declaree `extern` mais pas definie par nous.
 
-## 11) builtins.c - dispatch principal
+## 10) Script de demonstration review
 
-- builtin_exit: gere exit sans arg, exit N, exit abc (erreur Illegal number)
-- builtin_env: affiche sh->env (notre copie dynamique)
-- _is_exit: simple strcmp helper
-- run_builtin: if/else chain sur args[0], retourne 1 si traite, 0 sinon
+Compilation :
 
-## 12) builtins2.c - setenv, unsetenv, cd
+    gcc -Wall -Werror -Wextra -pedantic -std=gnu89 *.c -o hsh
 
-- builtin_setenv: verifie 2 args, delegue a _setenv
-- builtin_unsetenv: verifie 1 arg, delegue a _unsetenv
-- _do_cd: getcwd ancien, chdir, mise a jour OLDPWD et PWD
-- builtin_cd: gere cd (HOME), cd - (OLDPWD + print), cd DIR
+Tests basiques :
 
-Question piege:
-Pourquoi mettre a jour PWD et OLDPWD ?
-Reponse:
-Pour que cd - fonctionne et que $PWD soit coherent avec le repertoire reel.
+    echo "/bin/echo OK" | ./hsh
+    echo "ls -l" | ./hsh
+    echo "qwerty" | ./hsh
+    echo "env" | ./hsh | head -3
+    echo "exit" | ./hsh ; echo $?
 
-## 13) builtins3.c - alias
+Comparaison automatique avec `/bin/sh` :
 
-- _find_alias_idx: recherche par prefixe "name=" dans le tableau
-- get_alias_value: retourne la valeur sans les quotes
-- _set_alias: strdup de la definition complete
-- builtin_alias: gere les 3 cas (print all, print one, set)
+    ./review_proof.sh
 
-## 14) builtins4.c - help et history
+## 11) Checklist finale avant passage
 
-- _print_help_all: liste tous les built-ins avec description courte
-- _print_help_one: details pour un built-in specifique
-- builtin_help: dispatch all vs specific
-- builtin_history: affiche les entrees avec numeros de ligne
-
-## 15) environ.c - gestion dynamique de l'environnement
-
-- copy_environ: malloc + strdup de chaque entree de extern environ
-- _getenv: parcours lineaire avec strncmp + verification du '='
-- _setenv: recherche, remplace ou ajoute (realloc le tableau)
-- _unsetenv: recherche, free, shift du dernier element
-- free_environ: free de chaque entree puis du tableau
-
-Question piege:
-Pourquoi ne pas utiliser le environ global directement ?
-Reponse:
-Pour pouvoir modifier l'env (setenv/unsetenv) proprement avec des allocations
-controlees et passer notre copie a execve.
-
-## 16) history.c - persistance
-
-- _get_hist_path: construit "$HOME/.simple_shell_history"
-- load_history: ouvre le fichier, lit avec _getline, stocke dans tableau
-- save_history: ecrit chaque entree dans le fichier (open + write)
-- add_history: ajoute au tableau, shift si > HIST_MAX (4096)
-- free_history: libere toutes les entrees
-
-## 17) helpers.c - utilitaires
-
-- _is_number: verifie que la chaine est un entier valide (digits, optionnel +/-)
-- _atoi_custom: conversion string -> int avec gestion du signe
-- _itoa: conversion int -> string alloue (via sprintf)
-
-## 18) Questions pieges frequentes
-
-Q: Difference entre /bin/ls et ls ?
-R: /bin/ls est un chemin explicite; ls doit etre resolu via PATH.
-
-Q: Pourquoi args doit finir par NULL ?
-R: C'est le format attendu par execve pour savoir ou s'arrete argv.
-
-Q: Comment gerez-vous Ctrl+D ?
-R: _getline retourne -1 (read retourne 0 a EOF), g_signal est 0, on sort.
-
-Q: Comment gerez-vous Ctrl+C ?
-R: Signal handler ecrit '\n', g_signal=1. Si on etait dans _getline,
-   read retourne -1 (EINTR), _getline retourne -1, le loop voit g_signal
-   et continue au lieu de quitter.
-
-Q: Que retourne votre shell en cas de commande introuvable ?
-R: 127, conforme a la convention shell.
-
-Q: Pourquoi ne pas utiliser system() ?
-R: Le sujet impose fork/execve pour comprendre la gestion processus.
-
-Q: Pourquoi une seule variable globale ?
-R: Betty interdit les globals. L'exception est g_signal car un signal handler
-   ne peut pas recevoir de parametres arbitraires.
-
-Q: Comment fonctionne l'expansion d'alias ?
-R: Dans exec_segment, apres tokenisation, on verifie si args[0] est un alias.
-   Si oui, on reconstruit la ligne complete (valeur alias + args restants)
-   et on re-tokenise.
-
-## 19) Script de demonstration review
-
-Compilation:
-gcc -Wall -Werror -Wextra -pedantic -std=gnu89 *.c -o hsh
-
-Tests basiques:
-echo "/bin/echo OK" | ./hsh
-echo "ls -l" | ./hsh
-echo "qwerty" | ./hsh
-echo "env" | ./hsh | head -3
-echo "exit 98" | ./hsh ; echo $?
-
-Tests avances:
-echo "ls /var ; echo done" | ./hsh
-echo "ls /hbtn && echo oui" | ./hsh
-echo "ls /hbtn || echo non" | ./hsh
-printf 'echo $?\necho $$\n' | ./hsh
-printf 'echo hello # comment\n' | ./hsh
-echo "cd /tmp" | ./hsh
-./hsh /tmp/test_commands.sh
-
-## 20) Checklist finale avant passage
-
-- le projet compile sans warning
-- README, man et AUTHORS presents et a jour
-- style Betty respecte (1 warning attendu: g_signal)
-- pas de fuite memoire (toutes les ressources liberees dans cleanup_shell)
-- messages d'erreur au bon format (identiques a /bin/sh)
-- les 8 built-ins operationnels (exit, env, setenv, unsetenv, cd, alias, help, history)
-- operateurs ;  &&  || fonctionnels
-- variables $? $$ $VAR expandees
-- commentaires # geres
-- mode fichier fonctionnel (./hsh filename)
-- Ctrl+C ne quitte pas le shell
+- le projet compile sans warning (`-Wall -Werror -Wextra -pedantic -std=gnu89`)
+- `README.md`, `man_1_simple_shell` et `AUTHORS` presents et a jour
+- style Betty respecte (zero warning / zero error)
+- pas de fuite memoire (Valgrind clean)
+- messages d'erreur au bon format (identiques a `/bin/sh`)
+- built-ins `exit` et `env` operationnels
+- resolution `PATH` operationnelle
+- pas de fork si commande introuvable
+- code de sortie `127` pour commande introuvable
 - Ctrl+D quitte proprement
-- historique charge/sauvegarde dans ~/.simple_shell_history
 - explication claire de chaque fichier et de chaque syscall
