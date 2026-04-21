@@ -1,8 +1,8 @@
 #include "shell.h"
 
 /**
- * print_env - Prints current environment, one variable per line.
- * @envp: Environment array.
+ * print_env - Affiche toutes les variables d'environnement.
+ * @envp: Tableau envp recu par le programme.
  */
 static void print_env(char **envp)
 {
@@ -17,12 +17,16 @@ static void print_env(char **envp)
 }
 
 /**
- * handle_builtin - Handles supported built-ins.
- * @args: Parsed command arguments.
- * @envp: Environment array.
- * @should_exit: Exit flag set to 1 for built-in exit.
+ * handle_builtin - Gere les built-ins supportes par le projet.
+ * @args: Arguments parsees de la ligne courante.
+ * @envp: Environnement courant.
+ * @should_exit: Flag de sortie a activer pour "exit".
  *
- * Return: 1 if a built-in was handled, 0 otherwise.
+ * Return: 1 si built-in traite, 0 sinon.
+ *
+ * Description:
+ * Task 0.4: support de "exit" sans gestion d'arguments obligatoire.
+ * Task 1.0: support de "env" pour afficher l'environnement.
  */
 int handle_builtin(char **args, char **envp, int *should_exit)
 {
@@ -31,10 +35,12 @@ int handle_builtin(char **args, char **envp, int *should_exit)
 		*should_exit = 1;
 		return (1);
 	}
+
 	if (strcmp(args[0], "env") == 0)
 	{
 		print_env(envp);
 		return (1);
 	}
+
 	return (0);
 }

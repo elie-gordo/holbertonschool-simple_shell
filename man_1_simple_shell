@@ -1,76 +1,81 @@
-.TH hsh 1 "April 2026" "Holberton simple_shell" "User Commands"
+.TH HSH 1 "April 2026" "simple_shell" "User Commands"
 .SH NAME
-hsh \- simple UNIX command interpreter
+hsh \- interpreteur de commandes UNIX minimal
 .SH SYNOPSIS
 .B hsh
 .SH DESCRIPTION
 .B hsh
-is a simple command-line interpreter.
-It reads commands from standard input, interprets them, and runs programs.
+lit des commandes depuis l'entree standard puis les execute.
 
-Version 1.0 behavior:
+Fonctionnalites implementees (tasks 0 a 6):
 .RS
-- command and arguments (split on spaces/tabs)
+- prompt en mode interactif
 .br
-- PATH search
+- parsing de ligne avec arguments
+.br
+- recherche des executables dans PATH
 .br
 - built-ins: exit, env
 .br
-- no pipes/redirections/advanced parsing
+- gestion EOF (Ctrl+D)
 .RE
 
-The shell follows the classic flow:
+Le format d'erreur pour une commande introuvable suit la forme:
 .RS
-read input \-> parse command \-> create child process \-> execute \-> wait
+prog_name: line_number: command: not found
 .RE
 
-In interactive mode, it displays a prompt and waits for user input.
-In non-interactive mode, it reads commands from piped input or files redirected to standard input.
-
-Error messages are expected to match
-.B /bin/sh
-format, except that the program name in messages must match
-.B argv[0]
-of
-.BR hsh .
+Les commandes externes sont executees via
+.BR fork (2)
+et
+.BR execve (2),
+puis le parent attend la fin avec
+.BR waitpid (2).
 .SH RETURN VALUE
-Returns 0 on normal exit.
-For command execution failures, behavior follows project specifications and shell conventions.
+Le shell retourne le dernier statut de commande connu.
 .SH ENVIRONMENT
 .B PATH
-is used to search executable files when commands are not absolute paths.
+est utilise pour rechercher les executables.
 
-Other environment variables are inherited from the parent process.
+Toutes les autres variables d'environnement sont heritees.
+.SH BUILTINS
+.TP
+.B exit
+Quitte le shell.
+.TP
+.B env
+Affiche l'environnement courant.
 .SH FILES
 .TP
 .B README.md
-Project documentation and learning context.
+Documentation complete du projet.
 .TP
 .B AUTHORS
-List of project contributors.
+Liste des contributeurs.
 .TP
 .B man_1_simple_shell
-This manual page.
+Cette page de manuel.
 .SH EXAMPLES
-Interactive mode:
+Mode interactif:
 .PP
 .B ./hsh
 .br
-#cisfun$ /bin/ls
+#cisfun$ ls -l
 .br
-#cisfun$ ./shell
+#cisfun$ env
+.br
+#cisfun$ exit
 
-Non-interactive mode:
+Mode non interactif:
 .PP
 .B echo "/bin/ls" | ./hsh
 .SH SEE ALSO
 .BR sh (1),
-.BR execve (2),
 .BR fork (2),
-.BR wait (2),
+.BR execve (2),
 .BR waitpid (2),
 .BR environ (7)
 .SH AUTHORS
-See the
+Consulter le fichier
 .B AUTHORS
-file in the project root.
+pour les contributeurs.

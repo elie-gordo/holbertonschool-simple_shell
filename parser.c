@@ -1,10 +1,10 @@
 #include "shell.h"
 
 /**
- * count_tokens - Counts whitespace-separated tokens.
- * @line: Input command line.
+ * count_tokens - Compte le nombre de mots separes par espace/tabulation.
+ * @line: Ligne brute entree par l'utilisateur.
  *
- * Return: Number of tokens.
+ * Return: Nombre de tokens trouves, ou 0 en cas d'echec d'allocation.
  */
 static int count_tokens(char *line)
 {
@@ -12,9 +12,11 @@ static int count_tokens(char *line)
 	char *copy;
 	char *token;
 
+	/* strtok modifie la chaine: on travaille donc sur une copie locale. */
 	copy = strdup(line);
 	if (copy == NULL)
 		return (0);
+
 	count = 0;
 	token = strtok(copy, " \t");
 	while (token != NULL)
@@ -22,15 +24,16 @@ static int count_tokens(char *line)
 		count++;
 		token = strtok(NULL, " \t");
 	}
+
 	free(copy);
 	return (count);
 }
 
 /**
- * parse_line - Splits input into argv style tokens.
- * @line: Input command line.
+ * parse_line - Decoupe la ligne en tableau argv termine par NULL.
+ * @line: Ligne a parser (sera modifiee par strtok).
  *
- * Return: Allocated argv array or NULL.
+ * Return: Tableau de pointeurs vers tokens, ou NULL si ligne vide/echec.
  */
 char **parse_line(char *line)
 {
@@ -42,9 +45,12 @@ char **parse_line(char *line)
 	total = count_tokens(line);
 	if (total == 0)
 		return (NULL);
+
+	/* On alloue uniquement le conteneur; les mots pointent dans line. */
 	args = malloc(sizeof(char *) * (total + 1));
 	if (args == NULL)
 		return (NULL);
+
 	token = strtok(line, " \t");
 	i = 0;
 	while (token != NULL)
@@ -54,12 +60,13 @@ char **parse_line(char *line)
 		token = strtok(NULL, " \t");
 	}
 	args[i] = NULL;
+
 	return (args);
 }
 
 /**
- * free_args - Frees token array container.
- * @args: Token array.
+ * free_args - Libere le conteneur du tableau d'arguments.
+ * @args: Tableau alloue par parse_line.
  */
 void free_args(char **args)
 {

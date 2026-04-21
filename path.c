@@ -1,11 +1,11 @@
 #include "shell.h"
 
 /**
- * build_full_path - Concatenates directory and command into full path.
- * @dir: Directory path.
- * @cmd: Command name.
+ * build_full_path - Construit "repertoire/commande".
+ * @dir: Repertoire issu de PATH.
+ * @cmd: Nom de commande a chercher.
  *
- * Return: Newly allocated full path or NULL.
+ * Return: Chaine allouee contenant le chemin complet, ou NULL.
  */
 static char *build_full_path(char *dir, char *cmd)
 {
@@ -16,15 +16,16 @@ static char *build_full_path(char *dir, char *cmd)
 	full = malloc(len);
 	if (full == NULL)
 		return (NULL);
+
 	sprintf(full, "%s/%s", dir, cmd);
 	return (full);
 }
 
 /**
- * get_path_value - Gets PATH value from envp array.
- * @envp: Environment array.
+ * get_path_value - Recupere la valeur brute de PATH depuis envp.
+ * @envp: Tableau d'environnement.
  *
- * Return: Pointer to PATH value, or NULL.
+ * Return: Pointeur vers la valeur de PATH, ou NULL si absente.
  */
 static char *get_path_value(char **envp)
 {
@@ -41,11 +42,11 @@ static char *get_path_value(char **envp)
 }
 
 /**
- * find_command - Resolves a command to an executable path.
- * @cmd: Command name or path.
- * @envp: Environment array.
+ * find_command - Resout une commande en chemin executable.
+ * @cmd: Commande demandee (nom simple ou chemin avec '/').
+ * @envp: Tableau d'environnement.
  *
- * Return: Newly allocated executable path, or NULL if not found.
+ * Return: Chemin alloue de la commande, ou NULL si introuvable.
  */
 char *find_command(char *cmd, char **envp)
 {
@@ -54,14 +55,23 @@ char *find_command(char *cmd, char **envp)
 	char *dir;
 	char *full;
 
+	/* Cas 1: l'utilisateur a fourni un chemin absolu/relatif. */
 	if (strchr(cmd, '/') != NULL)
-		return (access(cmd, X_OK) == 0 ? strdup(cmd) : NULL);
+	{
+		if (access(cmd, X_OK) == 0)
+			return (strdup(cmd));
+		return (NULL);
+	}
+
+	/* Cas 2: on cherche dans PATH. */
 	path_value = get_path_value(envp);
 	if (path_value == NULL)
 		return (NULL);
+
 	paths = strdup(path_value);
 	if (paths == NULL)
 		return (NULL);
+
 	dir = strtok(paths, ":");
 	while (dir != NULL)
 	{
@@ -74,6 +84,7 @@ char *find_command(char *cmd, char **envp)
 		free(full);
 		dir = strtok(NULL, ":");
 	}
+
 	free(paths);
 	return (NULL);
 }

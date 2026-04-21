@@ -1,12 +1,16 @@
 #include "shell.h"
 
 /**
- * main - Entry point for the simple shell.
- * @ac: Number of arguments.
- * @av: Program arguments.
- * @envp: Environment variables.
+ * main - Point d'entree du programme hsh.
+ * @ac: Nombre d'arguments recus par le programme.
+ * @av: Tableau des arguments (av[0] contient le nom du shell).
+ * @envp: Tableau des variables d'environnement heritees.
  *
- * Return: Exit status code.
+ * Return: Code de retour final du shell.
+ *
+ * Description:
+ * Cette fonction delegue toute la logique du shell a simple_shell().
+ * On ignore ac car le projet ne demande pas de flags en ligne de commande.
  */
 int main(int ac, char **av, char **envp)
 {

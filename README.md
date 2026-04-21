@@ -1,152 +1,153 @@
 # simple_shell
 
-A simple UNIX command interpreter project for Holberton School.
+Interpreteur de commandes UNIX minimal ecrit en C (projet Holberton).
 
-## Project Goal
-This project asks us to build a minimal shell named `hsh`.
+## 1) Objectif du projet
 
-A shell is a program that:
-- reads a command line,
-- interprets the command,
-- creates a child process,
-- executes the requested program,
-- waits for completion,
-- then prompts for the next command.
+Construire un shell capable de:
+- lire une commande depuis stdin,
+- la parser,
+- chercher un binaire executable,
+- creer un processus enfant,
+- executer la commande avec execve,
+- attendre la fin de l'enfant,
+- recommencer.
 
-In very simple words (child-friendly):
-- Think of the shell like a helper that listens to what you ask your computer to do.
-- If you say "show files", it finds the right program and asks the computer to run it.
-- Then it waits until that job is done before listening again.
+Ce depot couvre les tasks 0 a 6, c'est-a-dire jusqu'a la version 1.0:
+- support des arguments,
+- recherche dans PATH,
+- built-ins exit et env.
 
-## Learning Objectives (Explained Clearly)
-By the end of this project, we must be able to explain:
+## 2) Compilation
 
-- Who designed and implemented the original UNIX operating system:
-  Ken Thompson and Dennis Ritchie at Bell Labs.
-- Who wrote the first UNIX shell:
-  Ken Thompson.
-- Who invented the B language (predecessor of C):
-  Ken Thompson.
-- Who Ken Thompson is:
-  A pioneer computer scientist who co-created UNIX and key tools used in modern systems.
-- How a shell works:
-  Read -> Parse -> Fork -> Exec -> Wait -> Repeat.
-- What `pid` and `ppid` are:
-  `pid` is a process ID (unique process number), `ppid` is its parent process ID.
-- How to manipulate the environment of the current process:
-  Read/update environment variables that affect process behavior.
-- Function vs system call:
-  A function is regular code (often in libraries). A system call asks the kernel to do privileged OS work.
-- How to create processes:
-  Use `fork`.
-- Three `main` prototypes:
-  - `int main(void)`
-  - `int main(int argc, char *argv[])`
-  - `int main(int argc, char *argv[], char *envp[])`
-- How PATH is used:
-  The shell searches each directory listed in `PATH` to find executables.
-- How to execute with `execve`:
-  Replace current process image with a new program.
-- How to wait for child termination:
-  Use `wait` / `waitpid`.
-- What EOF is:
-  End-of-file condition (for example `Ctrl + D` in interactive input).
+Commande imposee:
 
-## Requirements (From Project Statement)
-- Allowed editors: `vi`, `vim`, `emacs`
-- Compilation target: Ubuntu 20.04 LTS
-- Compiler: `gcc`
-- Flags: `-Wall -Werror -Wextra -pedantic -std=gnu89`
-- Every file must end with a new line
-- `README.md` is mandatory
-- Betty style required (`betty-style.pl`, `betty-doc.pl`)
-- No memory leaks
-- No more than 5 functions per file
-- All header files must be include-guarded
-- Use system calls only when necessary
-
-## Allowed Functions and System Calls
-The project allows specific C library functions and system calls (see project statement), including:
-all functions from `string.h`, and:
-`access`, `chdir`, `close`, `closedir`, `execve`, `exit`, `_exit`, `fflush`, `fork`, `free`, `getcwd`, `getline`, `getpid`, `isatty`, `kill`, `malloc`, `open`, `opendir`, `perror`, `printf`, `fprintf`, `vfprintf`, `sprintf`, `putchar`, `read`, `readdir`, `signal`, `stat`, `lstat`, `fstat`, `strtok`, `wait`, `waitpid`, `wait3`, `wait4`, `write`.
-
-## Compilation
-```bash
 gcc -Wall -Werror -Wextra -pedantic -std=gnu89 *.c -o hsh
-```
 
-## Expected Execution Modes
-Interactive mode:
-```bash
+## 3) Utilisation
+
+Mode interactif:
+
 ./hsh
-($) /bin/ls
-($) exit
-```
+#cisfun$ /bin/ls
+#cisfun$ ls -l
+#cisfun$ env
+#cisfun$ exit
 
-Non-interactive mode:
-```bash
+Mode non interactif:
+
 echo "/bin/ls" | ./hsh
-```
 
-Complete non-interactive example from subject:
-```bash
-cat test_ls_2
-/bin/ls
-/bin/ls
-cat test_ls_2 | ./hsh
-```
+## 4) Fonctionnalites par task
 
-Expected output:
-```bash
-hsh main.c shell.c test_ls_2
-hsh main.c shell.c test_ls_2
-```
+### Task 0 - README, man, AUTHORS
+- README present
+- page man presente: man_1_simple_shell
+- fichier AUTHORS present
 
-## Error Message Rule
-The shell output and error behavior must match `/bin/sh`, except the program name in error output must match `argv[0]`.
+### Task 1 - Betty
+- code structure en fichiers courts
+- commentaires de fonctions presents
+- indentation claire et uniforme
 
-Example:
-```bash
+### Task 2 - Simple shell 0.1
+- prompt en interactif
+- lecture de ligne avec getline
+- execution d'une commande simple
+- gestion EOF (Ctrl+D)
+- gestion des erreurs
+
+### Task 3 - Simple shell 0.2
+- gestion des arguments (ex: ls -l /tmp)
+
+### Task 4 - Simple shell 0.3
+- recherche de la commande dans PATH
+- pas de fork si commande introuvable
+
+### Task 5 - Simple shell 0.4
+- built-in exit
+
+### Task 6 - Simple shell 1.0
+- built-in env
+
+## 5) Architecture des fichiers
+
+- shell.h: includes, prototypes, organisation globale
+- main.c: point d'entree
+- shell.c: boucle principale
+- parser.c: decoupage de la ligne en tokens
+- path.c: resolution d'une commande via PATH
+- execute.c: fork/execve/waitpid + gestion status
+- builtins.c: built-ins exit et env
+- man_1_simple_shell: page de manuel
+- AUTHORS: contributeurs
+
+## 6) Notions techniques a maitriser
+
+### Histoire
+- UNIX originel: Ken Thompson et Dennis Ritchie
+- Premier shell UNIX: Ken Thompson
+- Langage B: Ken Thompson
+
+### Processus
+- pid: identifiant du processus courant
+- ppid: identifiant du parent
+- fork: duplique le processus
+- execve: remplace l'image du processus courant
+- waitpid: attend la fin d'un enfant
+
+### Environnement
+- envp/environ: tableau NAME=VALUE
+- PATH: liste de repertoires ou chercher les commandes
+
+### Parsing
+- strtok sur espaces/tabulations
+- tableau argv termine par NULL pour execve
+
+### Erreurs
+- commande introuvable: "prog: line: cmd: not found"
+- erreurs systeme: perror
+
+## 7) Limites volontaires (scope du projet)
+
+Non implemente:
+- pipes
+- redirections
+- operateurs ; && ||
+- guillemets avances
+- variables shell personnalisees
+
+## 8) Exemples de tests utiles
+
+Commande valide:
+
+echo "/bin/echo OK" | ./hsh
+
+Commande via PATH:
+
+echo "ls" | ./hsh
+
+Commande introuvable:
+
 echo "qwerty" | ./hsh
-./hsh: 1: qwerty: not found
-```
 
-## Repository Content (Task 0)
-This task requires:
-- `README.md`
-- `man_1_simple_shell`
-- `AUTHORS`
+Built-in env:
 
-## Simple shell 1.0 (Current Implementation)
-Usage:
-```bash
-./hsh
-```
+echo "env" | ./hsh
 
-Implemented for 1.0:
-- Displays a prompt (`#cisfun$ `) in interactive mode.
-- Reads one command line at a time with `getline`.
-- Handles commands with arguments (split by spaces/tabs).
-- Resolves commands through `PATH` when command is not an absolute/relative path.
-- Does not call `fork` when command cannot be resolved.
-- Executes with `fork` + `execve`.
-- Prints an error with `perror` when execution fails.
-- Waits for child process completion with `waitpid`.
-- Handles EOF (`Ctrl + D`) by exiting cleanly.
-- Passes `envp` to `execve`.
-- Implements built-in `exit`.
-- Implements built-in `env` (prints current environment).
+Sortie propre:
 
-Intentionally not implemented in 1.0:
-- Pipes, redirections, semicolons.
-- Special character handling (`"`, `'`, `` ` ``, `\\`, `*`, `&`, `#`).
+echo "exit" | ./hsh
 
-## Terminology Quick Guide
-- Command interpreter: program that understands user commands.
-- Process: running instance of a program.
-- System call: direct request from user program to OS kernel.
-- Environment variable: key-value configuration available to processes.
-- Executable: runnable binary file.
+## 9) Ressources
 
-## Authors
-See `AUTHORS`.
+- man sh
+- man fork
+- man execve
+- man waitpid
+- man getline
+- man environ
+
+## 10) Auteurs
+
+Voir le fichier AUTHORS.
